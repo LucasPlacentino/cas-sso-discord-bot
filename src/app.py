@@ -4,7 +4,10 @@
 #import quart.flask_patch
 #from quart import Quart, request, sessions, redirect, url_for, render_template
 
+#! pip install flask[async] # https://flask.palletsprojects.com/en/3.0.x/async-await/
 from flask import Flask, request, session, redirect, url_for, render_template
+import asyncio # https://testdriven.io/blog/flask-async/
+# or use an WsgiToAsgi adapter: https://flask.palletsprojects.com/en/3.0.x/deploying/asgi/
 
 from cas import CASClient, CASError # https://github.com/python-cas/python-cas
 from flask_discord import DiscordOAuth2Session, requires_authorization, Unauthorized # https://github.com/weibeu/Flask-Discord
@@ -109,6 +112,7 @@ def discord_callback():
 #? needed ?
 @app.errorhandler(Unauthorized)
 def redirect_unauthorized(e):
+    app.logger.info("Unauthorized request: %s", e)
     print("Unauthorized request: ", e)
     return redirect(url_for("login"))
 
