@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="error">500 Internal error ({{ e }}). <a href="{{ url_for('index') }}">Go back home</a></div>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="error">429 Rate limited, retry after {{ retry_after }}. <a href="{{ url_for('index') }}">Go back home</a></div>
+{% endblock %}
