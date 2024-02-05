@@ -1,6 +1,8 @@
 # cas-sso-discord-bot
-A Discord bot for authenticating users using CAS SSO.  
+A Discord bot and FastAPI webapp for authenticating users using CAS SSO.  
 Links their Discord account (ID) to their CAS credentials. Users are able to link and unlink their account, and only one Discord ID can be linked to a CAS user.  
+
+FastAPI, Disnake, CAS, [some database TBD], Docker, Discord OAuth2, etc.
 
 ### Currently at the idea stage
 Possibly replacing [our own previous bot **ULBDiscordBot**](https://github.com/bepolytech/ULBDiscordBot) and inspired by [Opensource-IIITH/Discord-CAS](https://github.com/Opensource-IIITH/Discord-CAS)  
