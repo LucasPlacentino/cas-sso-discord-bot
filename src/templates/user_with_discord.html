@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="username">user: {{ username }} <a href="{{ url_for('logout') }}">Logout</a></div>
+    <br>
+    <div class="discord-username">Discord username: {{ dscord_username }}<a href="{{ url_for('discord_logout') }}">Discord Logout</a></div>
+{% endblock %}
