@@ -6,7 +6,7 @@ app = Flask(__name__)
 app.secret_key = getenv("APP_SECRET_KEY") # TODO: or generate at startup ?
 
 cas_client = CASClient(
-    version=3, # v2 ?
+    version=getenv("CAS_VERSION"),#3, # v2 or v1 ?
     service_url=getenv("CAS_SERVICE_URL"),
     server_url=getenv("CAS_SERVER_URL")
 )
