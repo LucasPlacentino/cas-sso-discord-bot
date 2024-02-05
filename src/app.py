@@ -1,17 +1,17 @@
 # cas-sso-discord-bot
 
 #! USE QUARK ??
-#import quart.flask_patch
-#from quart import Quart, request, sessions, redirect, url_for, render_template
+import quart.flask_patch
+from quart import Quart, request, session, redirect, url_for, render_template
 
-from flask import Flask, request, session, redirect, url_for, render_template
+#from flask import Flask, request, session, redirect, url_for, render_template
 
 from cas import CASClient, CASError # https://github.com/python-cas/python-cas
 from flask_discord import DiscordOAuth2Session, requires_authorization, Unauthorized # https://github.com/weibeu/Flask-Discord
 from os import getenv, environ
 
-#app = Quart(__name__)
-app = Flask(__name__)
+app = Quart(__name__)
+#app = Flask(__name__)
 app.secret_key = getenv("APP_SECRET_KEY") # TODO: or generate at startup ?
 environ["OAUTHLIB_INSECURE_TRANSPORT"] = "true" if getenv("DEV_ENV") else "false" # !! Only in development environment (no https).
 
@@ -29,111 +29,112 @@ app.config["DISCORD_BOT_TOKEN"] = getenv("DISCORD_BOT_TOKEN")           # Requir
 discordAuth = DiscordOAuth2Session(app)
 
 @app.route('/')
-def index():
-    #return redirect(url_for("login"))
-    return 'Hello! <a href="/login">CAS Login</a>'
-    #return render_template("index.html")
+async def index():
+    #return await redirect(url_for("login"))
+    return await 'Hello! <a href="/login">CAS Login</a>'
+    #return await render_template("index.html")
 
 
 @app.route('/user')
-def user(method=['GET']):
+async def user(method=['GET']):
     if 'username' in session:
         # Logged in with CAS
         if not discordAuth.authorized:
             # Not logged in with Discord
-            return 'Logged in as %s. <a href="/logout">Logout</a>' % session['username']
+            return await 'Logged in as %s. <a href="/logout">Logout</a>' % session['username']
         else:
             # Logged in with Discord
-            return render_template("user_with_discord.html", username=session['username'], discord_username=session['discord_username'])
+            return await render_template("user_with_discord.html", username=session['username'], discord_username=session['discord_username'])
     # Not logged in with CAS
-    return 'Login required. <a href="/login">Login</a>', 403
+    return await 'Login required. <a href="/login">Login</a>', 403
 
 
 @app.route('/login')
-def login():
+async def login():
     if 'username' in session:
         # Already logged in
-        return redirect(url_for('user'))
+        return await redirect(url_for('user'))
 
-    next = request.args.get('next')
-    ticket = request.args.get('ticket')
+    next = await request.args.get('next')
+    ticket = await request.args.get('ticket')
     if not ticket:
         # No ticket, the request come from end user, send to CAS login
-        cas_login_url = cas_client.get_login_url()
+        cas_login_url = await cas_client.get_login_url()
         app.logger.debug('CAS login URL: %s', cas_login_url)
-        return redirect(cas_login_url)
+        return await redirect(cas_login_url)
 
     # There is a ticket, the request come from CAS as callback.
     # need call `verify_ticket()` to validate ticket and get user profile.
     app.logger.debug('ticket: %s', ticket)
     app.logger.debug('next: %s', next)
 
-    CASUser, attributes, pgtiou = cas_client.verify_ticket(ticket)
+    CASUser, attributes, pgtiou = await cas_client.verify_ticket(ticket)
 
     app.logger.debug(
         'CAS verify ticket response: user: %s, attributes: %s, pgtiou: %s', CASUser, attributes, pgtiou)
 
     if not CASUser:
-        return 'Failed to verify ticket. <a href="/login">Login</a>'
+        return await 'Failed to verify ticket. <a href="/login">Login</a>'
     else:  # Login successfully, redirect according `next` query parameter.
         session['username'] = CASUser
-        return redirect(next)
+        return await redirect(next)
 
 @app.route('/discord-login')
-def discord_login():
+async def discord_login():
     if 'username' in session:
         # Already logged in
         # TODO: Discord OAuth login
-        return discordAuth.create_session()
+        return await discordAuth.create_session() #! ??
     else:
-        return redirect(url_for('login'))
+        return await redirect(url_for('login'))
     
 @app.route("/discord-callback")
-def discord_callback():
-    data = discordAuth.callback()
+async def discord_callback():
+    data = await discordAuth.callback()
 
     app.logger.debug(data)
     if getenv("DEBUG"):
         print(data)
 
-    discordUser = discordAuth.fetch_user()
+    discordUser = await discordAuth.fetch_user()
     session['discord_username'] = discordUser.name
 
     # User is logged in with CAS and Discord
-    link_accounts(session['username'], discordUser.id)
+    await link_accounts(session['username'], discordUser.id)
     # Give role to Discord user
-    give_role(discordUser.id)
+    await give_role(discordUser.id)
 
-    return redirect(url_for("user"))
+    return await redirect(url_for("user"))
 
 #? needed ?
 @app.errorhandler(Unauthorized)
-def redirect_unauthorized(e):
-    print("Unauthorized request: ", e)
-    return redirect(url_for("login"))
+async def redirect_unauthorized(e):
+    app.logger.info("Unauthorized request: " + str(e))
+    #print("Unauthorized request:", e)
+    return await redirect(url_for("login"))
 
 @app.route('/discord-logout')
-def discord_logout():
-    discordAuth.revoke() # Discord logout
-    return redirect(url_for("user"))
+async def discord_logout():
+    await discordAuth.revoke() # Discord logout
+    return await redirect(url_for("user"))
 
 @app.route('/logout')
-def logout():
-    discordAuth.revoke() # Discord logout
+async def logout():
+    await discordAuth.revoke() # Discord logout
 
-    redirect_url = url_for('logout_callback', _external=True)
-    cas_logout_url = cas_client.get_logout_url(redirect_url)
+    redirect_url = await url_for('logout_callback', _external=True)
+    cas_logout_url = await cas_client.get_logout_url(redirect_url)
     app.logger.debug('CAS logout URL: %s', cas_logout_url)
 
-    return redirect(cas_logout_url) # CAS logout
+    return await redirect(cas_logout_url) # CAS logout
 
 
 @app.route('/logout_callback')
-def logout_callback():
+async def logout_callback():
     # redirect from CAS logout request after CAS logout successfully
     session.pop('username', None)
     #return 'Logged out from CAS. <a href="/login">Login</a>'
-    return redirect(url_for('index'))
+    return await redirect(url_for('index'))
 
 def link_accounts(cas_username, discord_id):
     pass # TODO: add to database
