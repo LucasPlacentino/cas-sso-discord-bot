@@ -4,6 +4,8 @@
 #import quart.flask_patch
 #from quart import Quart, request, sessions, redirect, url_for, render_template
 
+from asgiref.wsgi import WsgiToAsgi # https://flask.palletsprojects.com/en/latest/deploying/asgi/
+
 #! pip install "Flask[async]" # https://flask.palletsprojects.com/en/3.0.x/async-await/
 from flask import Flask, request, session, redirect, url_for, render_template
 import asyncio # https://testdriven.io/blog/flask-async/
@@ -14,7 +16,8 @@ from flask_discord import DiscordOAuth2Session, requires_authorization, Unauthor
 from os import getenv, environ
 
 #app = Quart(__name__)
-app = Flask(__name__)
+wsgi_app = Flask(__name__)
+app = WsgiToAsgi(wsgi_app) # https://flask.palletsprojects.com/en/latest/deploying/asgi/
 app.secret_key = getenv("APP_SECRET_KEY") # TODO: or generate at startup ?
 environ["OAUTHLIB_INSECURE_TRANSPORT"] = "true" if getenv("DEV_ENV") else "false" # !! Only in development environment (no https).
 
