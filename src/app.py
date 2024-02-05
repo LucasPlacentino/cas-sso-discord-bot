@@ -1,13 +1,15 @@
 # cas-sso-discord-bot
 
 #! USE QUARK ??
-import quart.flask_patch
+import quart.flask_patch #! needed ?
+
 from quart import Quart, request, session, redirect, url_for, render_template
 
 #from flask import Flask, request, session, redirect, url_for, render_template
 
 from cas import CASClient, CASError # https://github.com/python-cas/python-cas
-from flask_discord import DiscordOAuth2Session, requires_authorization, Unauthorized # https://github.com/weibeu/Flask-Discord
+#from flask_discord import DiscordOAuth2Session, requires_authorization, Unauthorized # https://github.com/weibeu/Flask-Discord
+from quart_discord import DiscordOAuth2Session, requires_authorization, Unauthorized # https://github.com/jnawk/quart-discord
 from os import getenv, environ
 
 app = Quart(__name__)
