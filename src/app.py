@@ -4,7 +4,7 @@
 #import quart.flask_patch
 #from quart import Quart, request, sessions, redirect, url_for, render_template
 
-#! pip install flask[async] # https://flask.palletsprojects.com/en/3.0.x/async-await/
+#! pip install "Flask[async]" # https://flask.palletsprojects.com/en/3.0.x/async-await/
 from flask import Flask, request, session, redirect, url_for, render_template
 import asyncio # https://testdriven.io/blog/flask-async/
 # or use an WsgiToAsgi adapter: https://flask.palletsprojects.com/en/3.0.x/deploying/asgi/
