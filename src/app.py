@@ -47,7 +47,7 @@ async def on_startup():
 
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(
+    return await templates.TemplateResponse(
         request=request, name="index.html", context={"hello": "world"}
     )
 
@@ -58,14 +58,14 @@ async def profile(request: Request):
     user = request.session.get("user")
     if user:
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return templates.TemplateResponse(request=request, name="user_with_discord.html", context={"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username})
+            return await templates.TemplateResponse(request=request, name="user_with_discord.html", context={"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username})
         else:
             return HTMLResponse('Logged in as %s. <a href="/logout">Logout</a>' % user['user'])
     return HTMLResponse('Login required. <a href="/login">Login</a>', status_code=403)
 
 
 @app.get('/login')
-def login(
+async def login(
     request: Request, next: Optional[str] = None,
     ticket: Optional[str] = None):
     if request.session.get("user", None):
@@ -76,7 +76,7 @@ def login(
     # ticket = request.args.get('ticket')
     if not ticket:
         # No ticket, the request come from end user, send to CAS login
-        cas_login_url = cas_client.get_login_url()
+        cas_login_url = await cas_client.get_login_url()
         print('CAS login URL: %s', cas_login_url)
         return RedirectResponse(cas_login_url)
 
@@ -85,7 +85,7 @@ def login(
     print('ticket: %s', ticket)
     print('next: %s', next)
 
-    user, attributes, pgtiou = cas_client.verify_ticket(ticket)
+    user, attributes, pgtiou = await cas_client.verify_ticket(ticket)
 
     print(
         'CAS verify ticket response: user: %s, attributes: %s, pgtiou: %s',
@@ -100,9 +100,9 @@ def login(
 
 
 @app.get('/logout')
-def logout(request: Request):
+async def logout(request: Request):
     redirect_url = request.url_for('logout-callback')
-    cas_logout_url = cas_client.get_logout_url(redirect_url)
+    cas_logout_url = await cas_client.get_logout_url(redirect_url)
     print('CAS logout URL: %s', cas_logout_url)
     return RedirectResponse(cas_logout_url)
 
@@ -124,7 +124,7 @@ async def discord_login(request: Request):
 
 @app.get('/discord-callback')
 async def discord_callback(request: Request, code: str, state: str):
-    token, refresh_token = await discord_auth.get_access_token(code)
+    token, refresh_token = await discord_auth.get_access_token(code) # ?
     request.session['discord_token'] = await discord_auth.get_token
 
     assert state == "my_test_state" # compares state for security # TODO: state
@@ -157,19 +157,20 @@ async def isAuthenticated(token: str = Depends(discord_auth.get_token)):
 
 @app.get('/discord-logout')
 async def discord_logout(request: Request):
+    # TODO:
     pass
 
 
 @app.exception_handler(Unauthorized)
 async def unauthorized_error_handler(request: Request):
     error = "Unauthorized"
-    return HTMLResponse(templates.TemplateResponse(request=request, name="401.html", context={"error": error}), status_code=401)
+    return await HTMLResponse(templates.TemplateResponse(request=request, name="401.html", context={"error": error}), status_code=401)
     return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
 
 @app.exception_handler(RateLimited)
 async def rate_limit_error_handler(request: Request, e: RateLimited):
-    return HTMLResponse(templates.TemplateResponse(request=request, name="429.html", context={"retry_after": e.retry_after}), status_code=429)
+    return await HTMLResponse(templates.TemplateResponse(request=request, name="429.html", context={"retry_after": e.retry_after}), status_code=429)
     return JSONResponse(
         {"error": "RateLimited", "retry": e.retry_after, "message": e.message},
         status_code=429,
@@ -179,7 +180,7 @@ async def rate_limit_error_handler(request: Request, e: RateLimited):
 @app.exception_handler(ClientSessionNotInitialized)
 async def client_session_error_handler(request: Request, e: ClientSessionNotInitialized):
     print(e)
-    return HTMLResponse(templates.TemplateResponse(request=request, name="500.html", context={"error": e}), status_code=500)
+    return await HTMLResponse(templates.TemplateResponse(request=request, name="500.html", context={"error": e}), status_code=500)
     return JSONResponse({"error": "Internal Error"}, status_code=500)
 
 
@@ -188,5 +189,5 @@ if __name__ == '__main__':
 
     #TODO: start Discord bot
 
-    uvicorn.run(app, port=getenv('PORT', 8000), host=getenv('HOST', '0.0.0.0'))
+    uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', '0.0.0.0'))
 
