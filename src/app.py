@@ -6,7 +6,8 @@
 
 #! pip install flask[async] # https://flask.palletsprojects.com/en/3.0.x/async-await/
 from flask import Flask, request, session, redirect, url_for, render_template
-import asyncio # https://testdriven.io/blog/flask-async/
+from threading import Thread
+#import asyncio # https://testdriven.io/blog/flask-async/
 # or use an WsgiToAsgi adapter: https://flask.palletsprojects.com/en/3.0.x/deploying/asgi/
 
 from cas import CASClient, CASError # https://github.com/python-cas/python-cas
@@ -146,7 +147,8 @@ def give_role(discord_id):
 
     pass # TODO: add to discord
 
-
+def run_flask():
+  app.run(host=getenv("FLASK_HOST"), port=getenv("FLASK_PORT"), debug=True if getenv("DEBUG") else False)
 
 if __name__ == '__main__':
 
@@ -154,10 +156,13 @@ if __name__ == '__main__':
     if not app.secret_key:
         from os import urandom
         app.secret_key = urandom(24)
-
-    #TODO: run discord bot
     
     #TODO: run webserver from different thread
+    flask_thread = Thread(target=run_flask)
+    flask_thread.start()
 
     #app.run(debug=True)
-    app.run(debug=True if getenv("DEBUG") else False)
+    #app.run(debug=True if getenv("DEBUG") else False)
+
+    #TODO: run discord bot
+    # OR: run discord bot only when needed (on give_role() call)
