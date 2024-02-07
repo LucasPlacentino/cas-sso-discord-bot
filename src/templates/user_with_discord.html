@@ -1,7 +1,62 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div class="username">user: {{ username }} <a href="{{ url_for('logout') }}">Logout</a></div>
-    <br>
-    <div class="discord-username">Discord username: {{ dscord_username }}<a href="{{ url_for('discord_logout') }}">Discord Logout</a></div>
+<div class="username">user: {{ username }} <a href="{{ url_for('logout') }}">Logout</a></div>
+<br>
+<div class="discord-username">Discord username: {{ dscord_username }}<a href="{{ url_for('discord_logout') }}">Discord
+        Logout</a></div>
+
+<section class="flex-sect" id="iqw1p">
+    <div class="container-width" id="ixcsj">
+        <div class="gjs-row" id="ibzh2s">
+            <div class="gjs-row" id="iwp1uq">
+                <div class="gjs-cell" id="iwc1yl">
+                    <div class="flex-title" id="isl2q">Hello, <i id="ibgfgw">{{ username }}<!--Théodore
+                            Verhaegen--><!--{{ user.name }} {{ user.surname }}--></i>
+                    </div>
+                </div>
+            </div>
+            <div class="gjs-title-row" id="iggerx">
+                <div class="gjs-cell" id="i87qsk">
+                    <i id="ijsy0p">{{ email }}<!--theodore.verhaegen@ulb.be-->
+                        <!--{{ user.email }}-->
+                    </i>
+                    <a href="{{ url_for('logout') }}" class="button-light logout-button" id="ihlfcn"><span id="i2e4vk">Logout</span><i
+                            style="font-size: 1.4em; margin-left: 1rem;" class="fa fa-sign-out logout-icon">
+                        </i></a>
+                </div>
+            </div>
+            <div class="gjs-row" id="i33md">
+                <div class="gjs-cell" id="ihc9u">
+                    <div id="iu6vy">Votre compte ULB et Discord sont bien reliés. Vous devriez avoir accès aux serveurs Discord réservés pour la communauté étudiante.</div>
+                </div>
+            </div>
+            <div class="gjs-row" id="iddg46">
+                <div class="gjs-cell" id="ieybnm">
+                    <h3 id="ivs5rm">Votre username Discord: <b><i
+                                id="i7esag">@theodoreverhaegen<!-- {{ user.discord_username }}-->
+                            </i></b></h3>
+                </div>
+            </div>
+            <div class="gjs-row" id="iwekp">
+                <div class="gjs-cell" id="ipcq2">
+                    <a href="{{ url_for('discord_logout') }}" class="button-light" id="discord-unlink-button">
+                        <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a69f118df70ad7828d4_icon_clyde_blurple_RGB.svg"
+                            class="button-icon" />
+                        <span>Unlink Discord</span>
+                    </a>
+                </div>
+            </div>
+            <div class="gjs-row" id="iy5iar">
+                <div class="gjs-cell" id="im6ow7">
+                    <div id="icf2hf">
+                        <h3 style="margin: 0; padding: 0; margin-top: 0.4em; text-decoration: underline;">Attention:
+                        </h3><br />Si vous déliez votre compte Discord associé, celui-ci perdra sans-doute ses accès aux serveurs réservés où le bot est setup. Il vous est cependant tout a fait possible de le relier à nouveau juste après.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 {% endblock %}
