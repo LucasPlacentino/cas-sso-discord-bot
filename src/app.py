@@ -10,7 +10,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi_discord import DiscordOAuthClient, RateLimited, Unauthorized, User # https://github.com/Tert0/fastapi-discord
+from fastapi_discord import DiscordOAuthClient, RateLimited, Unauthorized # https://github.com/Tert0/fastapi-discord
+from fastapi_discord import User as DiscordUser
 from fastapi_discord.exceptions import ClientSessionNotInitialized
 from fastapi_discord.models import GuildPreview
 #* OR ? :
@@ -18,14 +19,15 @@ from fastapi_discord.models import GuildPreview
 import asyncio
 from os import getenv
 import logging
+import platform
 
-from .bot import BOT as bot # TODO: 
+from bot import Bot # TODO: 
 
 app = FastAPI(title=__name__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 cas_client = CASClient(
-    version=getenv('CAS_VERSION'),
+    version=getenv('CAS_VERSION', 1),
     service_url=getenv('CAS_SERVICE_URL'),
     server_url=getenv('CAS_SERVER_URL'),
 )
@@ -35,13 +37,63 @@ discord_auth = DiscordOAuthClient(
     client_id=getenv('DISCORD_CLIENT_ID'),
     client_secret=getenv('DISCORD_CLIENT_SECRET'),
     #redirect_url=getenv('DISCORD_REDIRECT_URL'),
-    redirect_url=str(getenv("SITE_URL", "http://localhost:8000"))+"/discord-callback",
+    redirect_uri=str(getenv("SITE_URL", "http://localhost:8000"))+"/discord-callback",
     scopes=("identify")#, "guilds", "email") # scopes
 )
 DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
 
 templates = Jinja2Templates(directory="templates")
 
+
+def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
+    """
+    Comprehensively adds a new logging level to the `logging` module and the
+    currently configured logging class.
+
+    `levelName` becomes an attribute of the `logging` module with the value
+    `levelNum`. `methodName` becomes a convenience method for both `logging`
+    itself and the class returned by `logging.getLoggerClass()` (usually just
+    `logging.Logger`). If `methodName` is not specified, `levelName.lower()` is
+    used.
+
+    To avoid accidental clobberings of existing attributes, this method will
+    raise an `AttributeError` if the level name is already an attribute of the
+    `logging` module or if the method name is already present
+
+    Example
+    -------
+    >>> addLoggingLevel('TRACE', logging.DEBUG - 5)
+    >>> logging.getLogger(__name__).setLevel("TRACE")
+    >>> logging.getLogger(__name__).trace('that worked')
+    >>> logging.trace('so did this')
+    >>> logging.TRACE
+    5
+
+    """
+    if not methodName:
+        methodName = levelName.lower()
+
+    if hasattr(logging, levelName):
+        raise AttributeError("{} already defined in logging module".format(levelName))
+    if hasattr(logging, methodName):
+        raise AttributeError("{} already defined in logging module".format(methodName))
+    if hasattr(logging.getLoggerClass(), methodName):
+        raise AttributeError("{} already defined in logger class".format(methodName))
+
+    # This method was inspired by the answers to Stack Overflow post
+    # http://stackoverflow.com/q/2183233/2988730, especially
+    # http://stackoverflow.com/a/13638084/2988730
+    def logForLevel(self, message, *args, **kwargs):
+        if self.isEnabledFor(levelNum):
+            self._log(levelNum, message, args, **kwargs)
+
+    def logToRoot(message, *args, **kwargs):
+        logging.log(levelNum, message, *args, **kwargs)
+
+    logging.addLevelName(levelNum, levelName)
+    setattr(logging, levelName, levelNum)
+    setattr(logging.getLoggerClass(), methodName, logForLevel)
+    setattr(logging, methodName, logToRoot)
 
 @app.on_event("startup")
 async def on_startup():
@@ -50,8 +102,7 @@ async def on_startup():
 
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
-    return await templates.TemplateResponse(
-        request=request, name="index.html", context={"hello": "world"}
+    return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"}
     )
 
 
@@ -61,7 +112,7 @@ async def profile(request: Request):
     user = request.session.get("user")
     if user:
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return await templates.TemplateResponse(request=request, name="user_with_discord.html", context={"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username})
+            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username})
         else:
             return HTMLResponse('Logged in as %s. <a href="/logout">Logout</a>' % user['user'])
     return HTMLResponse('Login required. <a href="/login">Login</a>', status_code=403)
@@ -73,13 +124,13 @@ async def login(
     ticket: Optional[str] = None):
     if request.session.get("user", None):
         # Already logged in
-        return RedirectResponse(request.url_for('profile'))
+        return RedirectResponse(request.url_for('user'))
 
     # next = request.args.get('next')
     # ticket = request.args.get('ticket')
     if not ticket:
         # No ticket, the request come from end user, send to CAS login
-        cas_login_url = await cas_client.get_login_url()
+        cas_login_url = cas_client.get_login_url()
         print('CAS login URL: %s', cas_login_url)
         return RedirectResponse(cas_login_url)
 
@@ -104,8 +155,8 @@ async def login(
 
 @app.get('/logout')
 async def logout(request: Request):
-    redirect_url = request.url_for('logout-callback')
-    cas_logout_url = await cas_client.get_logout_url(redirect_url)
+    redirect_url = request.url_for('logout_callback')
+    cas_logout_url = cas_client.get_logout_url(redirect_url)
     print('CAS logout URL: %s', cas_logout_url)
     return RedirectResponse(cas_logout_url)
 
@@ -120,7 +171,7 @@ def logout_callback(request: Request):
 
 @app.get('/discord-login')
 async def discord_login(request: Request):
-    return await RedirectResponse(discord_auth.get_oauth_login_url(state="my_test_state")) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
+    return RedirectResponse(discord_auth.get_oauth_login_url(state="my_test_state")) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
     return await discord_auth.login(request) # ?
     #return await RedirectResponse(discord_auth.oauth_login_url) # or discord_auth.get_oauth_login_url(state="my state")
 
@@ -128,11 +179,17 @@ async def discord_login(request: Request):
 @app.get('/discord-callback')
 async def discord_callback(request: Request, code: str, state: str):
     token, refresh_token = await discord_auth.get_access_token(code) # ?
-    request.session['discord_token'] = await discord_auth.get_token
+    request.session['discord_refresh_token'] = refresh_token
+    request.session['discord_token'] = await discord_auth.get_token() #! or just token from above ?
+
+    user: DiscordUser = await discord_auth.user()
+    request.session['discord_username'] = user.username+str(user.discriminator) # ?
+    request.session["discord_global_name"] = user.global_name
+    request.session["discord_id"] = user.id
 
     assert state == "my_test_state" # compares state for security # TODO: state
     
-    return await RedirectResponse(request.url_for('user'))
+    return RedirectResponse(request.url_for('user'))
     #try:
     #    await discord_auth.callback(request)
     #    return RedirectResponse(request.url_for('user'))
@@ -158,46 +215,74 @@ async def isAuthenticated(token: str = Depends(discord_auth.get_token)):
         return False
 
 
-@app.get('/discord-logout')
+@app.get('/discord-logout', dependencies=[Depends(discord_auth.requires_authorization)])
 async def discord_logout(request: Request):
-    # TODO:
-    pass
+    # TODO: sufficient ?
+    request.session.pop("discord_token", None)
+    #request.session.pop("discord_refresh_token", None)
+    return RedirectResponse(request.url_for('user'))
 
 
 @app.exception_handler(Unauthorized)
 async def unauthorized_error_handler(request: Request):
     error = "Unauthorized"
-    return await HTMLResponse(templates.TemplateResponse(request=request, name="401.html", context={"error": error}), status_code=401)
-    return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    return HTMLResponse(templates.TemplateResponse(name="401.html", context={"request": request,"error": error}), status_code=401)
+    #return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
 
 @app.exception_handler(RateLimited)
 async def rate_limit_error_handler(request: Request, e: RateLimited):
-    return await HTMLResponse(templates.TemplateResponse(request=request, name="429.html", context={"retry_after": e.retry_after}), status_code=429)
-    return JSONResponse(
-        {"error": "RateLimited", "retry": e.retry_after, "message": e.message},
-        status_code=429,
-    )
+    return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after}), status_code=429)
+    #return JSONResponse({"error": "RateLimited", "retry": e.retry_after, "message": e.message}, status_code=429)
 
 
 @app.exception_handler(ClientSessionNotInitialized)
 async def client_session_error_handler(request: Request, e: ClientSessionNotInitialized):
     print(e)
-    return await HTMLResponse(templates.TemplateResponse(request=request, name="500.html", context={"error": e}), status_code=500)
-    return JSONResponse({"error": "Internal Error"}, status_code=500)
+    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e}), status_code=500)
+    #return JSONResponse({"error": "Internal Error"}, status_code=500)
 
 
 async def run_bot():
-    try:
-        await bot.run(getenv("DISCORD_BOT_TOKEN"))
-    except:
-        await bot.stop()
-        logging.debug("Bot logout")
+
+    addLoggingLevel("TRACE", logging.INFO - 5)
+
+    logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+    rootLogger = logging.getLogger()
+    rootLogger.setLevel(logging.DEBUG)
+
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setFormatter(logFormatter)
+    consoleHandler.setLevel(logging.TRACE)
+    rootLogger.addHandler(consoleHandler)
+
+    if platform.system() == "Linux":
+        fileInfoHandler = logging.handlers.RotatingFileHandler(
+            filename="logs/info.log", mode="w", encoding="UTF-8", delay=True, backupCount=5
+        )
+        fileDebugHandler = logging.handlers.RotatingFileHandler(
+            filename="logs/debug.log", mode="w", encoding="UTF-8", delay=True, backupCount=5
+        )
+        fileInfoHandler.setFormatter(logFormatter)
+        fileInfoHandler.setLevel(logging.TRACE)
+        fileInfoHandler.doRollover()
+        rootLogger.addHandler(fileInfoHandler)
+        fileDebugHandler.setFormatter(logFormatter)
+        fileDebugHandler.setLevel(logging.DEBUG)
+        fileDebugHandler.doRollover()
+        rootLogger.addHandler(fileDebugHandler)
+
+    else:
+        logging.warning("Non Linux system. Log info and debug file won't be available.")
+
+    bot = Bot(logger=rootLogger, logFormatter=logFormatter)
+    #await bot.run(getenv("DISCORD_BOT_TOKEN"))
 
 # ? needed ?
 async def run_web():
     try:
-        await uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', '0.0.0.0')) # ?
+        logging.debug("Run webapp")
+        #await uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', 'localhost')) # ?
     except:
         logging.debug("Webapp fail")
     
@@ -206,8 +291,9 @@ if __name__ == '__main__':
 
     #TODO: start Discord bot
     
-    asyncio.create_task(run_bot()) # ? run Discord bot async
+    #if not getenv("BOT_DISABLED"):
+    #    asyncio.create_task(run_bot()) # ? run Discord bot async
 
-    uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', '0.0.0.0'))
+    uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', 'localhost'))
     #asyncio.create_task(run_web()) # ? run FastAPI webapp async
 

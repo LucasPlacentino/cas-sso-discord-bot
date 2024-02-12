@@ -1,5 +1,10 @@
 /* todo */
 
+:root{
+    margin: 0;
+    padding: 0;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -55,12 +60,13 @@ button:hover {
 }
 
 .footer-under {
+    bottom: 0;
     background-color: #312833;
     padding-bottom: 100px;
     padding-top: 100px;
     min-height: 500px;
     color: #eee;
-    position: relative;
+    position: absolute;
     font-weight: 100;
     font-family: Helvetica, serif;
     margin-top: auto;
@@ -200,7 +206,7 @@ button:hover {
 }
 
 #ikn8eu {
-    padding: 32px 0px 32px 0px;
+    padding: 32px 0px 0px 0px;
     min-height: 18rem;
     opacity: 1;
     background-repeat: repeat;
