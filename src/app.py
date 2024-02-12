@@ -7,7 +7,7 @@ from fastapi import FastAPI, Depends, Request
 from starlette.middleware.sessions import SessionMiddleware
 #from starlette.requests import Request
 #from starlette.responses import Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi_discord import DiscordOAuthClient, RateLimited, Unauthorized, User # https://github.com/Tert0/fastapi-discord
@@ -15,11 +15,12 @@ from fastapi_discord.exceptions import ClientSessionNotInitialized
 from fastapi_discord.models import GuildPreview
 #* OR ? :
 #* from starlette_discord.client import DiscordOAuthClient # https://github.com/nwunderly/starlette-discord
+import asyncio
 from os import getenv
+import logging
 
 app = FastAPI(title=__name__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-from fastapi.responses import RedirectResponse
 
 cas_client = CASClient(
     version=getenv('CAS_VERSION'),
@@ -184,10 +185,27 @@ async def client_session_error_handler(request: Request, e: ClientSessionNotInit
     return JSONResponse({"error": "Internal Error"}, status_code=500)
 
 
+async def run_bot():
+    try:
+        await bot.start()
+    except:
+        await bot.logout()
+        logging.debug("Bot logout")
+
+# ? needed ?
+async def run_web():
+    try:
+        await uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', '0.0.0.0')) # ?
+    except:
+        logging.debug("Webapp fail")
+    
 if __name__ == '__main__':
     import uvicorn
 
     #TODO: start Discord bot
+    
+    asyncio.create_task(run_bot()) # ? run Discord bot async
 
     uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', '0.0.0.0'))
+    #asyncio.create_task(run_web()) # ? run FastAPI webapp async
 
