@@ -19,6 +19,8 @@ import asyncio
 from os import getenv
 import logging
 
+from .bot import BOT as bot # TODO: 
+
 app = FastAPI(title=__name__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -187,9 +189,9 @@ async def client_session_error_handler(request: Request, e: ClientSessionNotInit
 
 async def run_bot():
     try:
-        await bot.start()
+        await bot.run(getenv("DISCORD_BOT_TOKEN"))
     except:
-        await bot.logout()
+        await bot.stop()
         logging.debug("Bot logout")
 
 # ? needed ?
