@@ -4,13 +4,13 @@ import os
 
 from sqlalchemy.schema import Column
 from sqlalchemy.types import String, Integer, Text
-from database import Base
+from .database import Base
 from fastapi_discord import Guild as DiscordGuild
 from typing import List
 from pydantic import BaseModel
 
-from app import get_database_session
-from sqlalchemy.orm import Session
+from .app import get_database_session
+from sqlalchemy.orm import Session, relationship
 from fastapi import Depends
 
 
@@ -64,15 +64,35 @@ class User(BaseModel):
 
     def __str__(self):
         return f"User: {self.cas_username}, Discord ID: {self.discord_id}"
+    
+    #class Config:
+    #    orm_mode = True
 
-
+#class UsersDB(Base, User, DiscordUser): #! use multiple inheritance ?
+#class UserDB(SQLModel, table=True): #! ? SQLModel
 class UsersDB(Base):
 
     __tablename__ = "Users"
 
-    discord_id = Column(Integer, primary_key=True, index=True) # String ? https://github.com/discord/discord-api-docs/blob/main/docs/resources/User.md
-    cas_username = Column(Text())
-    cas_email = Column(Text())
-    discord_username = Column(String(32))
-    discord_global_name = Column(Text())
-    guilds = Column(Text()) # List of guilds the user is in
+    discord_id = Column(Integer, primary_key=True, unique=True, index=True) # String ? https://github.com/discord/discord-api-docs/blob/main/docs/resources/User.md
+    cas_username = Column(String, unique=True, index=True)
+    cas_email = Column(String, unique=True, index=True)
+    discord_username = Column(String(32), unique=True, index=True)
+    discord_global_name = Column(String)
+    guilds = Column(String) # List of guilds the user is in
+
+    #guilds = relationship("GuildsDB", back_populates="users") #?
+
+    class Config:
+        orm_mode = True
+
+class GuildsDB(Base):
+    
+    __tablename__ = "Guilds"
+
+    guild_id = Column(Integer, primary_key=True, unique=True, index=True)
+
+    #users = relationship("UsersDB", back_populates="guilds") # ?
+
+    class Config:
+        orm_mode = True

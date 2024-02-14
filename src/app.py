@@ -23,10 +23,10 @@ from os import getenv
 import logging
 import platform
 
-from bot import Bot # TODO: 
+from .bot import Bot # TODO: 
 
-from models import User, UsersDB
-from database import engine, SessionLocal, Base
+from .models import User, UsersDB
+from .database import engine, SessionLocal, Base
 # test
 Base.metadata.create_all(bind=engine)
 def get_database_session():
