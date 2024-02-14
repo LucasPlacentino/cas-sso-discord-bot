@@ -30,33 +30,33 @@ class User(BaseModel):
         self.discord_global_name = discord_global_name
         self.guilds = guilds
 
-    def link_accounts(self, db: Session = Depends(get_database_session)):
+    async def link_accounts(self, db: Session = Depends(get_database_session)):
         #user = db.query(UsersDB).get(self.cas_username)
-        user = db.query(UsersDB).filter(UsersDB.cas_username == self.cas_username).first()
+        user = await db.query(UsersDB).filter(UsersDB.cas_username == self.cas_username).first()
         user.discord_id = self.discord_id
         user.discord_username = self.discord_username
         user.discord_global_name = self.discord_global_name
         user.guilds = self.guilds
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
         pass # TODO: add to database
 
-    def unlink_accounts(self, db: Session = Depends(get_database_session)):
+    async def unlink_accounts(self, db: Session = Depends(get_database_session)):
         #user = db.query(UsersDB).get(self.cas_username)
-        user = db.query(UsersDB).filter(UsersDB.cas_username == self.cas_username).first()
+        user = await db.query(UsersDB).filter(UsersDB.cas_username == self.cas_username).first()
         user.discord_id = None
         user.discord_username = None
         user.discord_global_name = None
         user.guilds = None
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
         pass #TODO: remove discord info from database
 
-    def delete_from_db(self, db: Session = Depends(get_database_session)):
+    async def delete_from_db(self, db: Session = Depends(get_database_session)):
         #user = db.query(UsersDB).get(self.cas_username)
-        user = db.query(UsersDB).filter(UsersDB.cas_username == self.cas_username).first()
-        db.delete(user)
-        db.commit()
+        user = await db.query(UsersDB).filter(UsersDB.cas_username == self.cas_username).first()
+        await db.delete(user)
+        await db.commit()
         pass #TODO: completely remove user from database
 
     def give_role(self, db: Session = Depends(get_database_session)):
