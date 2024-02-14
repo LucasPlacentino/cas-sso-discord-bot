@@ -1,7 +1,7 @@
-version: '3'
+version: '3.9'
 
 services:
-  CAS-SSA-DISCORD-BOT:
+  cas-sso-discord-bot:
     image: bepolytech/cas-sso-discord-bot:latest # or version like :1.2
     container_name: CAS-SSO-Discord-Bot
     #build:
@@ -12,4 +12,41 @@ services:
       - .env
     volumes:
       - ./:/usr/src/cas-sso-discord-bot
+    network_mode: host
     restart: always # or unless-stopped or on-failure
+    #! Comment this below if using Google Sheets as a database
+    depends_on:
+      db:
+        condition: service_healthy
+
+  #! --- Comment this below if using Google Sheets as a database ---
+
+  ## Postgres
+  database:
+    image: postgres:15-alpine # version ?
+    container_name: DB_CAS-SSO-Discord-Bot
+    env_file:
+      - .env
+    volumes:
+    - ./db-data:/var/lib/postgresql/data:cached
+    expose:
+     - "${DB_PORT}" # 5432 ?
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ## MySQL
+  database:
+    image: mysql:alpine # version ?
+    container_name: DB_CAS-SSO-Discord-Bot
+    env_file:
+      - .env
+    volumes:
+      - ./db-data:/#?TODO
+    expose:
+      - "${DB_PORT}" # ?
+    restart: always
+  
