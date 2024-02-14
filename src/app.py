@@ -12,6 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi_discord import DiscordOAuthClient, RateLimited, Unauthorized # https://github.com/Tert0/fastapi-discord
 from fastapi_discord import User as DiscordUser
+#from fastapi_discord import Role as DiscordRole #???
+from fastapi_discord import Guild as DiscordGuild
 from fastapi_discord.exceptions import ClientSessionNotInitialized
 from fastapi_discord.models import GuildPreview
 #* OR ? :
@@ -22,6 +24,17 @@ import logging
 import platform
 
 from bot import Bot # TODO: 
+
+from models import User, UsersDB
+from database import engine, SessionLocal, Base
+# test
+Base.metadata.create_all(bind=engine)
+def get_database_session():
+    try:
+        db = SessionLocal()
+        yield db
+    finally:
+        db.close()
 
 app = FastAPI(title=__name__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -41,6 +54,13 @@ discord_auth = DiscordOAuthClient(
     scopes=("identify")#, "guilds", "email") # scopes
 )
 DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
+
+#admin_guild: DiscordGuild = DiscordGuild(
+#    id=getenv("ADMIN_GUILD_ID"),
+#    name=getenv("ADMIN_GUILD_NAME", "Admin Guild"),
+#    owner=???,
+#    permissions=???
+#)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -107,7 +127,7 @@ async def index(request: Request):
 
 
 @app.get('/user', response_class=HTMLResponse)
-async def profile(request: Request):
+async def user(request: Request):
     print(request.session.get("user"))
     user = request.session.get("user")
     if user:
@@ -116,6 +136,7 @@ async def profile(request: Request):
         else:
             return HTMLResponse('Logged in as %s. <a href="/logout">Logout</a>' % user['user'])
     return HTMLResponse('Login required. <a href="/login">Login</a>', status_code=403)
+    return RedirectResponse(request.url_for('login'))
 
 
 @app.get('/login')
@@ -155,10 +176,15 @@ async def login(
 
 @app.get('/logout')
 async def logout(request: Request):
-    redirect_url = request.url_for('logout_callback')
-    cas_logout_url = cas_client.get_logout_url(redirect_url)
-    print('CAS logout URL: %s', cas_logout_url)
-    return RedirectResponse(cas_logout_url)
+    user = request.session.get("user")
+    if user:
+        redirect_url = request.url_for('logout_callback')
+        cas_logout_url = cas_client.get_logout_url(redirect_url)
+        print('CAS logout URL: %s', cas_logout_url)
+        return RedirectResponse(cas_logout_url)
+    else:
+        return HTMLResponse('Not logged in. <a href="/login">Login</a>')
+        return RedirectResponse(request.url_for('login'))
 
 
 @app.get('/logout-callback')
@@ -167,38 +193,52 @@ def logout_callback(request: Request):
     # response.delete_cookie('username')
     request.session.pop("user", None)
     return HTMLResponse('Logged out from CAS. <a href="/login">Login</a>')
+    return RedirectResponse(request.url_for('index'))
 
 
 @app.get('/discord-login')
 async def discord_login(request: Request):
-    return RedirectResponse(discord_auth.get_oauth_login_url(state="my_test_state")) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
+    #TODO:
+    #user_session_state = generate_random(seed=request.session.items())
+    #session_state = randomASCII(len=12)
+    #session_state = hashlib.sha256(os.urandom(1024)).hexdigest()
+    return RedirectResponse(discord_auth.get_oauth_login_url(
+        state="my_test_state" #TODO: generate state token ? based on user's session/request? see above commented
+    )) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
     return await discord_auth.login(request) # ?
     #return await RedirectResponse(discord_auth.oauth_login_url) # or discord_auth.get_oauth_login_url(state="my state")
 
 
 @app.get('/discord-callback')
 async def discord_callback(request: Request, code: str, state: str):
-    token, refresh_token = await discord_auth.get_access_token(code) # ?
-    request.session['discord_refresh_token'] = refresh_token
-    request.session['discord_token'] = await discord_auth.get_token() #! or just token from above ?
+    cas_user = request.session.get("user")
+    if cas_user:
+        token, refresh_token = await discord_auth.get_access_token(code) # ?
+        request.session['discord_refresh_token'] = refresh_token
+        request.session['discord_token'] = await discord_auth.get_token() #! or just token from above ?
 
-    user: DiscordUser = await discord_auth.user()
-    request.session['discord_username'] = user.username+str(user.discriminator) # ?
-    request.session["discord_global_name"] = user.global_name
-    request.session["discord_id"] = user.id
+        user: DiscordUser = await discord_auth.user()
+        request.session['discord_username'] = user.username+str(user.discriminator) # ?
+        request.session["discord_global_name"] = user.global_name
+        request.session["discord_id"] = user.id
 
-    assert state == "my_test_state" # compares state for security # TODO: state
-    
-    return RedirectResponse(request.url_for('user'))
-    #try:
-    #    await discord_auth.callback(request)
-    #    return RedirectResponse(request.url_for('user'))
-    #except Unauthorized:
-    #    return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    #except RateLimited:
-    #    return JSONResponse({"error": "RateLimited"}, status_code=429)
-    #except ClientSessionNotInitialized:
-    #    return JSONResponse({"error": "ClientSessionNotInitialized"}, status_code=500)
+        user_guilds: List[DiscordGuild] = await discord_auth.guilds()
+        request.session["discord_guilds"] = user_guilds #TODO: check which guilds that the user and the bot are both in
+
+        assert state == "my_test_state" # compares state for security # TODO: state
+        
+        return RedirectResponse(request.url_for('user'))
+        #try:
+        #    await discord_auth.callback(request)
+        #    return RedirectResponse(request.url_for('user'))
+        #except Unauthorized:
+        #    return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        #except RateLimited:
+        #    return JSONResponse({"error": "RateLimited"}, status_code=429)
+        #except ClientSessionNotInitialized:
+        #    return JSONResponse({"error": "ClientSessionNotInitialized"}, status_code=500)
+    else:
+        return RedirectResponse(request.url_for('login'))
 
 
 #! needed ?
@@ -216,11 +256,29 @@ async def isAuthenticated(token: str = Depends(discord_auth.get_token)):
 
 
 @app.get('/discord-logout', dependencies=[Depends(discord_auth.requires_authorization)])
-async def discord_logout(request: Request):
-    # TODO: sufficient ?
-    request.session.pop("discord_token", None)
-    #request.session.pop("discord_refresh_token", None)
-    return RedirectResponse(request.url_for('user'))
+async def discord_logout(request: Request, token: str = Depends(discord_auth.get_token)):
+    try:
+        if await discord_auth.isAuthenticated(token):
+    #if await discord_auth.isAuthenticated(request.session['access_token']):
+            # TODO: sufficient ?
+            request.session.pop("discord_token", None)
+            request.session.pop("discord_refresh_token", None)
+            request.session.pop('discord_username', None)
+            request.session.pop("discord_global_name", None)
+            request.session.pop("discord_id", None)
+            request.session.pop("discord_guilds", None)
+
+            #await discord_auth.revoke(request.session['access_token']) #? not in fastapi-discord ?
+
+            return RedirectResponse(request.url_for('user'))
+        else:
+            return RedirectResponse(request.url_for('user'))
+    except Unauthorized:
+        cas_user = request.session.get("user")
+        if cas_user:
+            return RedirectResponse(request.url_for('user'))
+        else:
+            return RedirectResponse(request.url_for('login'))
 
 
 @app.exception_handler(Unauthorized)
