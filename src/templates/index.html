@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="cas-login"><a href="{{ url_for('login') }}">Login</a></div>
+<!--<div class="cas-login"><a href="{{ url_for('login') }}">Login</a></div>-->
 
 <section class="flex-sect" id="iqw1p">
     <div class="container-width" id="ixcsj">
@@ -18,7 +18,7 @@
         </div>
         <div class="gjs-title-row" id="i6uu1">
             <div class="gjs-cell" id="it38h">
-                <div class="flex-title" id="if6j5">ULB Verify Discord Bot</div>
+                <div class="flex-title" id="if6j5">{{ 'Discord CAS Auth Bot' | env_var('APP_NAME') }}</div>
             </div>
         </div>
         <div id="ixr83">
@@ -27,8 +27,7 @@
         </div>
         <div class="gjs-row" id="iayhk">
             <div class="gjs-cell" id="iqrik">
-                <div class="flex-desc" id="il3a7">Reliez votre compte Discord avec votre compte ULB afin d'accéder aux
-                    serveurs Discord réservés à la communauté étudiante</div>
+                <div class="flex-desc" id="il3a7">{{ 'Connect through CAS and Discord to get your Discord role on the server(s)' | env_var('APP_DESCRIPTION') }}</div>
             </div>
         </div>
         <div class="gjs-row" id="i8ano">
@@ -41,7 +40,7 @@
                     <!--
                     <img src="https://actus.ulb.be/medias/photo/logo-ulb_1585322164632-jpg?ID_FICHE=19524"
                         class="button-icon" />-->
-                    <span>Login</span>
+                    <span>{{ lang_str("login") }}</span>
                 </a>
             </div>
         </div>

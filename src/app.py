@@ -25,9 +25,11 @@ import platform
 
 from httpx import AsyncClient
 
-from .bot import Bot # TODO: 
+from .lang import lang_str
 
-from .models import User, UsersDB
+from .bot import Bot # TODO: implement bot
+
+from .models import User, UsersDB #?
 from .database import engine, SessionLocal, Base
 # test
 Base.metadata.create_all(bind=engine)
@@ -73,7 +75,7 @@ def env_var(key: str):
         return ""
     return value
 
-templates.env.filters["env_var"] = env_var
+templates.env.filters["env_var"] = env_var # or templates.env.globals ?
 
 
 def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
@@ -137,8 +139,7 @@ async def teapot():
 
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"}
-    )
+    return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"}, lang_str=lang_str)
 
 
 @app.get('/user', response_class=HTMLResponse)
@@ -147,7 +148,7 @@ async def user(request: Request):
     user = request.session.get("user")
     if user:
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username})
+            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username}, lang_str=lang_str)
         else:
             return HTMLResponse('Logged in as %s. <a href="/logout">Logout</a>' % user['user'])
     return HTMLResponse('Login required. <a href="/login">Login</a>', status_code=403)
@@ -279,7 +280,9 @@ async def discord_logout(request: Request, token: str = Depends(discord_auth.get
             # TODO: sufficient ?
 
             #await discord_auth.revoke(request.session['discord_token']) #? not in fastapi-discord ?
+            # see https://github.com/treeben77/discord-oauth2.py/blob/main/discordoauth2/__init__.py#L242
             await revoke_discord_token(request.session['discord_token'], "access_token", request.session['discord_username'])
+            await revoke_discord_token(request.session['discord_refresh_token'], "refresh_token", request.session['discord_username'])
 
             request.session.pop("discord_token", None)
             request.session.pop("discord_refresh_token", None)
@@ -310,7 +313,7 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
         )
         
     if response.status_code.OK:# or response.status_code == 200:
-        logging.debug(f"revoke_discord_token: Discord token revoked successfully for {user}.")
+        logging.debug(f"revoke_discord_token: Discord token (type:{token_type}) revoked successfully for user:{user}.")
         return True
     elif response.status_code == 401:
         logging.error(f"revoke_discord_token: 401 This AccessToken does not have the necessary scope.")
@@ -324,20 +327,20 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
 @app.exception_handler(Unauthorized)
 async def unauthorized_error_handler(request: Request):
     error = "Unauthorized"
-    return HTMLResponse(templates.TemplateResponse(name="401.html", context={"request": request,"error": error}), status_code=401)
+    return HTMLResponse(templates.TemplateResponse(name="401.html", context={"request": request,"error": error}, lang_str=lang_str), status_code=401)
     #return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
 
 @app.exception_handler(RateLimited)
 async def rate_limit_error_handler(request: Request, e: RateLimited):
-    return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after}), status_code=429)
+    return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after}, lang_str=lang_str), status_code=429)
     #return JSONResponse({"error": "RateLimited", "retry": e.retry_after, "message": e.message}, status_code=429)
 
 
 @app.exception_handler(ClientSessionNotInitialized)
 async def client_session_error_handler(request: Request, e: ClientSessionNotInitialized):
     print(e)
-    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e}), status_code=500)
+    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e}, lang_str=lang_str), status_code=500)
     #return JSONResponse({"error": "Internal Error"}, status_code=500)
 
 
