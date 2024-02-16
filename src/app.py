@@ -73,8 +73,9 @@ discord_auth = DiscordOAuthClient(
     client_secret=getenv('DISCORD_CLIENT_SECRET'),
     #redirect_url=getenv('DISCORD_REDIRECT_URI'),
     redirect_uri=str(getenv("SITE_URL", "http://localhost:8000"))+"/discord-callback",
-    #scopes=("identify","")#, "guilds", "email") # scopes default: just "identify"
+    scopes=("identify","guilds")#, "guilds", "email") # scopes default: just "identify"
 )
+logging.debug(f"discord_auth scopes: {discord_auth.scopes}")
 DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
 
 #admin_guild: DiscordGuild = DiscordGuild(
@@ -172,10 +173,13 @@ async def user(request: Request):
             return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": request.session['discord_id'], "discord_username": request.session['discord_username']})
         else:
             if getenv("DEBUG"):
-                return HTMLResponse(f'Logged in as {str(user['user'])}. <a href="{request.url_for('logout')}">Logout</a>')
+                cas_user = str(user['user'])
+                logout_url = request.url_for('logout')
+                return HTMLResponse(f'Logged in as {cas_user}. <a href="{logout_url}">Logout</a>')
             return templates.TemplateResponse(name="user.html", context={"request": request,"cas_username": user})
     if getenv("DEBUG"):
-        return HTMLResponse(f'Login required. <a href="{request.url_for('login')}">Login</a>', status_code=403)
+        login_url = request.url_for('login')
+        return HTMLResponse(f'Login required. <a href="{login_url}">Login</a>', status_code=403)
     return RedirectResponse(request.url_for('login'), status_code=403)
     return RedirectResponse(request.url_for('index'), status_code=403) #? maybe this instead ?
 
@@ -243,7 +247,8 @@ async def discord_login(request: Request):
     #user_session_state = generate_random(seed=request.session.items())
     #session_state = randomASCII(len=12)
     #session_state = hashlib.sha256(os.urandom(1024)).hexdigest()
-    logging.debug("discord_login: "+discord_auth.get_oauth_login_url(state="my_test_state"))
+
+    #logging.debug("discord_login: "+discord_auth.get_oauth_login_url(state="my_test_state"))
     return RedirectResponse(discord_auth.get_oauth_login_url(
         state="my_test_state" #TODO: generate state token ? based on user's session/request? see above commented
     )) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
@@ -270,40 +275,42 @@ async def discord_callback(request: Request, code: str, state: str):
     cas_user = request.session.get("user")
     if getenv("DEBUG") or cas_user:
         token, refresh_token = await discord_auth.get_access_token(code) # ?
-        if getenv("DEBUG"):
-            logging.debug(f"discord_callback: token={token}, refresh_token={refresh_token}")
+        #if getenv("DEBUG"):
+        #    logging.debug(f"discord_callback: token={token}, refresh_token={refresh_token}")
         request.session['discord_refresh_token'] = refresh_token
         request.session['discord_token'] = token #await discord_auth.get_token(request=request) #! or just token from above ?
 
         user: DiscordUser = await get_user(token=token)
         if getenv("DEBUG"):
             logging.debug(f"discord_callback: user={user}")
-        #user: DiscordUser = await discord_auth.user(request=request)
+        ##user: DiscordUser = await discord_auth.user(request=request)
         request.session['discord_username'] = user.username+(str(user.discriminator) if user.discriminator else "") # ?
         request.session["discord_global_name"] = user.global_name
         request.session["discord_id"] = user.id
 
         try:
             user_guilds: List[DiscordGuild] = await get_user_guilds(token=token)
-            if getenv("DEBUG"):
-                logging.debug(f"discord_callback: user_guilds={user_guilds}")
-            #user_guilds: List[DiscordGuild] = await discord_auth.guilds()
-            request.session["discord_guilds"] = user_guilds #TODO: check which guilds that the user and the bot are both in
+            #if getenv("DEBUG"):
+            #    logging.debug(f"discord_callback: user_guilds={user_guilds}")
+            ##user_guilds: List[DiscordGuild] = await discord_auth.guilds()
+            
+            #request.session["discord_guilds"] = user_guilds
+            #TODO: check which guilds that the user and the bot are both in, and only put the intersect in the session
         except:
-            logging.error(f"ScopeMissing error in Discord API Client: missing \"guilds\" in scopes")
+            logging.error(f"ScopeMissing error in Discord API Client: missing \"guilds\" in scopes -> ignoring user guilds")
 
         assert state == "my_test_state" # compares state for security # TODO: state
         
         return RedirectResponse(request.url_for('user'))
-        #try:
-        #    await discord_auth.callback(request)
-        #    return RedirectResponse(request.url_for('user'))
-        #except Unauthorized:
-        #    return JSONResponse({"error": "Unauthorized"}, status_code=401)
-        #except RateLimited:
-        #    return JSONResponse({"error": "RateLimited"}, status_code=429)
-        #except ClientSessionNotInitialized:
-        #    return JSONResponse({"error": "ClientSessionNotInitialized"}, status_code=500)
+        ##try:
+        ##    await discord_auth.callback(request)
+        ##    return RedirectResponse(request.url_for('user'))
+        ##except Unauthorized:
+        ##    return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        ##except RateLimited:
+        ##    return JSONResponse({"error": "RateLimited"}, status_code=429)
+        ##except ClientSessionNotInitialized:
+        ##    return JSONResponse({"error": "ClientSessionNotInitialized"}, status_code=500)
     else:
         return RedirectResponse(request.url_for('login'))
 
