@@ -20,27 +20,45 @@ from fastapi_discord.models import GuildPreview
 #* from starlette_discord.client import DiscordOAuthClient # https://github.com/nwunderly/starlette-discord
 import asyncio
 from os import getenv
+from dotenv import load_dotenv
+load_dotenv()
 import logging
 import platform
 
 from httpx import AsyncClient
 
-from .lang import lang_str
+from lang import lang_str
 
-from .bot import Bot # TODO: implement bot
+from bot import Bot # TODO: implement bot
 
-from .models import User, UsersDB #?
-from .database import engine, SessionLocal, Base
+# ------------
+
+
+VERSION = "0.1.0"
+
+
+# ------------
+
+if getenv("DEBUG"):
+    logging.basicConfig(level=logging.DEBUG)
+
+logging.info("Launching app... Name:"+str(getenv("APP_NAME")))
+logging.info("Description:"+str(getenv("APP_DESCRIPTION")))
+logging.info("Version:"+str(VERSION))
+
+#from models import User, UsersDB #?
+#from database import engine, SessionLocal, Base
 # test
-Base.metadata.create_all(bind=engine)
-def get_database_session():
-    try:
-        db = SessionLocal()
-        yield db
-    finally:
-        db.close()
+#Base.metadata.create_all(bind=engine)
+#def get_database_session():
+#    try:
+#        db = SessionLocal()
+#        yield db
+#    finally:
+#        db.close()
 
 app = FastAPI(title=__name__)
+app = FastAPI(title=getenv("APP_NAME"), description=getenv("APP_DESCRIPTION"), version=VERSION)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 cas_client = CASClient(
@@ -53,9 +71,9 @@ app.add_middleware(SessionMiddleware, secret_key=getenv('SECRET'))
 discord_auth = DiscordOAuthClient(
     client_id=getenv('DISCORD_CLIENT_ID'),
     client_secret=getenv('DISCORD_CLIENT_SECRET'),
-    #redirect_url=getenv('DISCORD_REDIRECT_URL'),
+    #redirect_url=getenv('DISCORD_REDIRECT_URI'),
     redirect_uri=str(getenv("SITE_URL", "http://localhost:8000"))+"/discord-callback",
-    scopes=("identify")#, "guilds", "email") # scopes
+    #scopes=("identify","")#, "guilds", "email") # scopes default: just "identify"
 )
 DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
 
@@ -68,14 +86,15 @@ DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://githu
 
 templates = Jinja2Templates(directory="templates")
 
-def env_var(key: str):
-    value = getenv(key)
+def env_var(key: str, default: Optional[str] = None):
+    value = getenv(key, default)
     if value is None:
         logging.error(f"In Jinja2Template env_var(key) filter: Environment variable with key={key} is not set")
         return ""
     return value
 
-templates.env.filters["env_var"] = env_var # or templates.env.globals ?
+templates.env.globals.update(env_var=env_var) # or templates.env.filter["env_var"] ?
+templates.env.globals.update(lang_str=lang_str)
 
 
 def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
@@ -139,7 +158,7 @@ async def teapot():
 
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"}, lang_str=lang_str)
+    return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"})
 
 
 @app.get('/user', response_class=HTMLResponse)
@@ -148,7 +167,7 @@ async def user(request: Request):
     user = request.session.get("user")
     if user:
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username}, lang_str=lang_str)
+            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username})
         else:
             return HTMLResponse('Logged in as %s. <a href="/logout">Logout</a>' % user['user'])
     return HTMLResponse('Login required. <a href="/login">Login</a>', status_code=403)
@@ -218,22 +237,25 @@ async def discord_login(request: Request):
     #user_session_state = generate_random(seed=request.session.items())
     #session_state = randomASCII(len=12)
     #session_state = hashlib.sha256(os.urandom(1024)).hexdigest()
+    logging.debug("discord_login: "+discord_auth.get_oauth_login_url(state="my_test_state"))
     return RedirectResponse(discord_auth.get_oauth_login_url(
         state="my_test_state" #TODO: generate state token ? based on user's session/request? see above commented
     )) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
-    return await discord_auth.login(request) # ?
+    #return await discord_auth.login(request) # ?
     #return await RedirectResponse(discord_auth.oauth_login_url) # or discord_auth.get_oauth_login_url(state="my state")
 
 
 @app.get('/discord-callback')
 async def discord_callback(request: Request, code: str, state: str):
     cas_user = request.session.get("user")
-    if cas_user:
+    if getenv("DEBUG") or cas_user:
         token, refresh_token = await discord_auth.get_access_token(code) # ?
+        if getenv("DEBUG"):
+            logging.debug(f"discord_callback: token={token}, refresh_token={refresh_token}")
         request.session['discord_refresh_token'] = refresh_token
-        request.session['discord_token'] = await discord_auth.get_token() #! or just token from above ?
+        request.session['discord_token'] = token #await discord_auth.get_token(request=request) #! or just token from above ?
 
-        user: DiscordUser = await discord_auth.user()
+        user: DiscordUser = await discord_auth.user(request=request)
         request.session['discord_username'] = user.username+(str(user.discriminator) if user.discriminator else "") # ?
         request.session["discord_global_name"] = user.global_name
         request.session["discord_id"] = user.id
@@ -327,20 +349,20 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
 @app.exception_handler(Unauthorized)
 async def unauthorized_error_handler(request: Request):
     error = "Unauthorized"
-    return HTMLResponse(templates.TemplateResponse(name="401.html", context={"request": request,"error": error}, lang_str=lang_str), status_code=401)
+    return HTMLResponse(templates.TemplateResponse(name="401.html", context={"request": request,"error": error}), status_code=401)
     #return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
 
 @app.exception_handler(RateLimited)
 async def rate_limit_error_handler(request: Request, e: RateLimited):
-    return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after}, lang_str=lang_str), status_code=429)
+    return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after}), status_code=429)
     #return JSONResponse({"error": "RateLimited", "retry": e.retry_after, "message": e.message}, status_code=429)
 
 
 @app.exception_handler(ClientSessionNotInitialized)
 async def client_session_error_handler(request: Request, e: ClientSessionNotInitialized):
     print(e)
-    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e}, lang_str=lang_str), status_code=500)
+    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e}), status_code=500)
     #return JSONResponse({"error": "Internal Error"}, status_code=500)
 
 
@@ -395,6 +417,7 @@ if __name__ == '__main__':
     #if not getenv("BOT_DISABLED"):
     #    asyncio.create_task(run_bot()) # ? run Discord bot async
 
-    uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', 'localhost'))
+
+    uvicorn.run(app, port=int(getenv('FASTAPI_PORT', 8000)), host=str(getenv('FASTAPI_HOST', 'localhost')))
     #asyncio.create_task(run_web()) # ? run FastAPI webapp async
 

@@ -7,7 +7,7 @@
     <div class="container-width" id="ixcsj">
         <div class="gjs-row" id="ibzh2s">
             <div class="gjs-cell" id="iezu0x">
-                <img id="im26nw" src="{{ url_for('static', path='images/icon.png') | env_var('ICON_URL') }}" />
+                <img id="im26nw" src="{{ env_var('ICON_URL', url_for('static', path='images/icon.png')) }}" />
                 <!--<img id="im26nw" src="{{ url_for('static', path='images/icon.png') }}" />-->
                 <!--<img id="im26nw" src="{{ url_for('static', path='images/bot_icon.png') }}" />-->
                 <!--
@@ -18,7 +18,7 @@
         </div>
         <div class="gjs-title-row" id="i6uu1">
             <div class="gjs-cell" id="it38h">
-                <div class="flex-title" id="if6j5">{{ 'Discord CAS Auth Bot' | env_var('APP_NAME') }}</div>
+                <div class="flex-title" id="if6j5">{{ env_var('APP_NAME', 'Discord CAS Auth Bot') }}</div>
             </div>
         </div>
         <div id="ixr83">
@@ -27,14 +27,14 @@
         </div>
         <div class="gjs-row" id="iayhk">
             <div class="gjs-cell" id="iqrik">
-                <div class="flex-desc" id="il3a7">{{ 'Connect through CAS and Discord to get your Discord role on the server(s)' | env_var('APP_DESCRIPTION') }}</div>
+                <div class="flex-desc" id="il3a7">{{ env_var('APP_DESCRIPTION', 'Connect through CAS and Discord to get your Discord role on the server(s)') }}</div>
             </div>
         </div>
         <div class="gjs-row" id="i8ano">
             <div class="gjs-cell" id="iwk22">
                 <a href="{{ url_for('login') }}" id="ulb-login-button" class="button-dark">
                     <!-- TODO: change icons at template render (so icon not present at Docker build), use url instead in env var?-->
-                    <img src="{{ 'https://apereo.github.io/cas/images/cas_logo.png' | env_var('CAS_ICON_URL') }}" class="button-icon" />
+                    <img src="{{ env_var('CAS_ICON_URL', 'https://apereo.github.io/cas/images/cas_logo.png') }}" class="button-icon" />
                     <!--<img src="{{ url_for('static', path='images/cas_icon.png') }}" class="button-icon" />-->
                     <!--<img src="{{ url_for('static', path='images/logo_ulb_bleu.jpg') }}" class="button-icon" />-->
                     <!--
