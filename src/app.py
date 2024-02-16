@@ -64,6 +64,15 @@ DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://githu
 
 templates = Jinja2Templates(directory="templates")
 
+def env_var(key: str, default = None):
+    value = getenv(key, default)
+    if value is None:
+        logging.error(f"In Jinja2Template env_var(key) filter: Environment variable with key={key} is not set")
+        return ""
+    return value
+
+templates.env.filters["env_var"] = env_var
+
 
 def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
     """
@@ -118,6 +127,10 @@ def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
 @app.on_event("startup")
 async def on_startup():
     await discord_auth.init()
+
+@app.get('/teapot')
+async def teapot():
+    return HTMLResponse("<h1>This is a teapot 🫖</h1>", status_code=418)
 
 
 @app.get('/', response_class=HTMLResponse)
