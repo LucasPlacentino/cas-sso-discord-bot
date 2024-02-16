@@ -66,8 +66,8 @@ DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://githu
 
 templates = Jinja2Templates(directory="templates")
 
-def env_var(key: str, default = None):
-    value = getenv(key, default)
+def env_var(key: str):
+    value = getenv(key)
     if value is None:
         logging.error(f"In Jinja2Template env_var(key) filter: Environment variable with key={key} is not set")
         return ""

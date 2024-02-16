@@ -7,8 +7,8 @@
     <div class="container-width" id="ixcsj">
         <div class="gjs-row" id="ibzh2s">
             <div class="gjs-cell" id="iezu0x">
-                <img id="im26nw" src="{{ '' | env_var('ICON_URL') }}" />
-                <img id="im26nw" src="{{ url_for('static', path='images/icon.png') }}" />
+                <img id="im26nw" src="{{ url_for('static', path='images/icon.png') | env_var('ICON_URL') }}" />
+                <!--<img id="im26nw" src="{{ url_for('static', path='images/icon.png') }}" />-->
                 <!--<img id="im26nw" src="{{ url_for('static', path='images/bot_icon.png') }}" />-->
                 <!--
                 <img id="im26nw"
