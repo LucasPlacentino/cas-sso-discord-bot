@@ -234,7 +234,7 @@ async def discord_callback(request: Request, code: str, state: str):
         request.session['discord_token'] = await discord_auth.get_token() #! or just token from above ?
 
         user: DiscordUser = await discord_auth.user()
-        request.session['discord_username'] = user.username+str(user.discriminator) # ?
+        request.session['discord_username'] = user.username+(str(user.discriminator) if user.discriminator else "") # ?
         request.session["discord_global_name"] = user.global_name
         request.session["discord_id"] = user.id
 
