@@ -23,6 +23,8 @@ from os import getenv
 import logging
 import platform
 
+from httpx import AsyncClient
+
 from .bot import Bot # TODO: 
 
 from .models import User, UsersDB
@@ -273,15 +275,18 @@ async def discord_logout(request: Request, token: str = Depends(discord_auth.get
     try:
         if await discord_auth.isAuthenticated(token):
     #if await discord_auth.isAuthenticated(request.session['access_token']):
+            
             # TODO: sufficient ?
+
+            #await discord_auth.revoke(request.session['discord_token']) #? not in fastapi-discord ?
+            await revoke_discord_token(request.session['discord_token'], "access_token", request.session['discord_username'])
+
             request.session.pop("discord_token", None)
             request.session.pop("discord_refresh_token", None)
             request.session.pop('discord_username', None)
             request.session.pop("discord_global_name", None)
             request.session.pop("discord_id", None)
             request.session.pop("discord_guilds", None)
-
-            #await discord_auth.revoke(request.session['access_token']) #? not in fastapi-discord ?
 
             return RedirectResponse(request.url_for('user'))
         else:
@@ -292,6 +297,28 @@ async def discord_logout(request: Request, token: str = Depends(discord_auth.get
             return RedirectResponse(request.url_for('user'))
         else:
             return RedirectResponse(request.url_for('login'))
+        
+async def revoke_discord_token(token: str, token_type: str=None, user: str=None):
+    """
+    Custom discord user token revoke implementation (which is missing from fastapi-discord).
+    """
+    async with AsyncClient(app=app, base_url=DISCORD_TOKEN_URL) as ac:
+        response = await ac.post(
+            "/revoke",
+            data={"token": token, "token_type_hint": token_type},
+            auth=(discord_auth.client_id, discord_auth.client_secret)
+        )
+        
+    if response.status_code.OK:# or response.status_code == 200:
+        logging.debug(f"revoke_discord_token: Discord token revoked successfully for {user}.")
+        return True
+    elif response.status_code == 401:
+        logging.error(f"revoke_discord_token: 401 This AccessToken does not have the necessary scope.")
+    elif response.status_code == 429:
+        logging.error(f"revoke_discord_token: 429 You are being Rate Limited. Retry after: {response.json()['retry_after']}")
+    else:
+        logging.error(f"revoke_discord_token: Unexpected HTTP response {response.status_code}")
+    return False
 
 
 @app.exception_handler(Unauthorized)
