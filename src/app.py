@@ -77,6 +77,7 @@ discord_auth = DiscordOAuthClient(
 )
 logging.debug(f"discord_auth scopes: {discord_auth.scopes}")
 DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
+#DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token" # no version in url ?
 
 #admin_guild: DiscordGuild = DiscordGuild(
 #    id=getenv("ADMIN_GUILD_ID"),
@@ -159,6 +160,11 @@ async def teapot():
 
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
+    #check if user is already logged in in request.session, redirect to user if so
+    user = request.session.get("user")
+    if user:
+        return RedirectResponse(request.url_for('user'))
+    
     return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"})
 
 
@@ -243,6 +249,10 @@ def logout_callback(request: Request):
 
 @app.get('/discord-login')
 async def discord_login(request: Request):
+    # check if already logged in with discord, redirect to user if so
+    if request.session.get("discord_token"):
+        return RedirectResponse(request.url_for('user'))
+
     #TODO:
     #user_session_state = generate_random(seed=request.session.items())
     #session_state = randomASCII(len=12)
@@ -329,17 +339,21 @@ async def isAuthenticated(token: str = Depends(discord_auth.get_token)):
         return False
 
 
-@app.get('/discord-logout', dependencies=[Depends(discord_auth.requires_authorization)])
-async def discord_logout(request: Request, token: str = Depends(discord_auth.get_token)):
+@app.get('/discord-logout')#, dependencies=[Depends(discord_auth.requires_authorization)])
+async def discord_logout(request: Request):#, token: str = Depends(discord_auth.get_token)):
     try:
-        if await discord_auth.isAuthenticated(token):
+        #if await discord_auth.isAuthenticated(token):
+        if await discord_auth.isAuthenticated(request.session['discord_token']):
+            logging.debug("discord_logout: isAuthenticated=True")
     #if await discord_auth.isAuthenticated(request.session['access_token']):
             
             # TODO: sufficient ?
 
             #await discord_auth.revoke(request.session['discord_token']) #? not in fastapi-discord ?
             # see https://github.com/treeben77/discord-oauth2.py/blob/main/discordoauth2/__init__.py#L242
+            logging.debug("discord_logout: revoking discord_token")
             await revoke_discord_token(request.session['discord_token'], "access_token", request.session['discord_username'])
+            logging.debug("discord_logout: revoking discord_refresh_token")
             await revoke_discord_token(request.session['discord_refresh_token'], "refresh_token", request.session['discord_username'])
 
             request.session.pop("discord_token", None)
@@ -358,7 +372,8 @@ async def discord_logout(request: Request, token: str = Depends(discord_auth.get
             return RedirectResponse(request.url_for('user'))
         else:
             return RedirectResponse(request.url_for('login'))
-        
+
+# FIXME: #! doesn't seem to be working ?
 async def revoke_discord_token(token: str, token_type: str=None, user: str=None):
     """
     Custom discord user token revoke implementation (which is missing from fastapi-discord).
@@ -370,7 +385,7 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
             auth=(discord_auth.client_id, discord_auth.client_secret)
         )
         
-    if response.status_code.OK:# or response.status_code == 200:
+    if response.status_code == 200:# or response.status_code.OK ?:
         logging.debug(f"revoke_discord_token: Discord token (type:{token_type}) revoked successfully for user:{user}.")
         return True
     elif response.status_code == 401:
