@@ -167,6 +167,12 @@ async def index(request: Request):
     
     return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"})
 
+@app.get('/profile')
+async def profile(request: Request):
+    return RedirectResponse(request.url_for('user'))
+@app.get('/me')
+async def me(request: Request):
+    return RedirectResponse(request.url_for('user'))
 
 @app.get('/user', response_class=HTMLResponse)
 async def user(request: Request):
@@ -183,6 +189,8 @@ async def user(request: Request):
                 logout_url = request.url_for('logout')
                 return HTMLResponse(f'Logged in as {cas_user}. <a href="{logout_url}">Logout</a>')
             return templates.TemplateResponse(name="user.html", context={"request": request,"cas_username": user})
+    elif request.session.get("discord_token"):
+        logging.debug("user: discord_token exists but user is not CAS authenticated")
     if getenv("DEBUG"):
         login_url = request.url_for('login')
         return HTMLResponse(f'Login required. <a href="{login_url}">Login</a>', status_code=403)
