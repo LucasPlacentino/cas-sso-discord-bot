@@ -165,13 +165,19 @@ async def index(request: Request):
 async def user(request: Request):
     print(request.session.get("user"))
     user = request.session.get("user")
+    if getenv("DEBUG"):
+        logging.debug(f"user: {user}")
     if user:
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": discord_auth.id, "discord_username": discord_auth.username})
+            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": request.session['discord_id'], "discord_username": request.session['discord_username']})
         else:
-            return HTMLResponse('Logged in as %s. <a href="/logout">Logout</a>' % user['user'])
-    return HTMLResponse('Login required. <a href="/login">Login</a>', status_code=403)
-    return RedirectResponse(request.url_for('login'))
+            if getenv("DEBUG"):
+                return HTMLResponse(f'Logged in as {str(user['user'])}. <a href="{request.url_for('logout')}">Logout</a>')
+            return templates.TemplateResponse(name="user.html", context={"request": request,"cas_username": user})
+    if getenv("DEBUG"):
+        return HTMLResponse(f'Login required. <a href="{request.url_for('login')}">Login</a>', status_code=403)
+    return RedirectResponse(request.url_for('login'), status_code=403)
+    return RedirectResponse(request.url_for('index'), status_code=403) #? maybe this instead ?
 
 
 @app.get('/login')
@@ -245,6 +251,20 @@ async def discord_login(request: Request):
     #return await RedirectResponse(discord_auth.oauth_login_url) # or discord_auth.get_oauth_login_url(state="my state")
 
 
+async def get_user(token: str = Depends(discord_auth.get_token)):
+    if "identify" not in discord_auth.scopes:
+        raise discord_auth.ScopeMissing("identify")
+    route = "/users/@me"
+    return DiscordUser(**(await discord_auth.request(route, token)))
+    #return user
+
+async def get_user_guilds(token: str = Depends(discord_auth.get_token)):
+    if "guilds" not in discord_auth.scopes:
+        raise discord_auth.ScopeMissing("guilds")
+    route = "/users/@me/guilds"
+    return [DiscordGuild(**guild) for guild in await discord_auth.request(route, token)]
+    #return guilds
+
 @app.get('/discord-callback')
 async def discord_callback(request: Request, code: str, state: str):
     cas_user = request.session.get("user")
@@ -255,13 +275,22 @@ async def discord_callback(request: Request, code: str, state: str):
         request.session['discord_refresh_token'] = refresh_token
         request.session['discord_token'] = token #await discord_auth.get_token(request=request) #! or just token from above ?
 
-        user: DiscordUser = await discord_auth.user(request=request)
+        user: DiscordUser = await get_user(token=token)
+        if getenv("DEBUG"):
+            logging.debug(f"discord_callback: user={user}")
+        #user: DiscordUser = await discord_auth.user(request=request)
         request.session['discord_username'] = user.username+(str(user.discriminator) if user.discriminator else "") # ?
         request.session["discord_global_name"] = user.global_name
         request.session["discord_id"] = user.id
 
-        user_guilds: List[DiscordGuild] = await discord_auth.guilds()
-        request.session["discord_guilds"] = user_guilds #TODO: check which guilds that the user and the bot are both in
+        try:
+            user_guilds: List[DiscordGuild] = await get_user_guilds(token=token)
+            if getenv("DEBUG"):
+                logging.debug(f"discord_callback: user_guilds={user_guilds}")
+            #user_guilds: List[DiscordGuild] = await discord_auth.guilds()
+            request.session["discord_guilds"] = user_guilds #TODO: check which guilds that the user and the bot are both in
+        except:
+            logging.error(f"ScopeMissing error in Discord API Client: missing \"guilds\" in scopes")
 
         assert state == "my_test_state" # compares state for security # TODO: state
         
