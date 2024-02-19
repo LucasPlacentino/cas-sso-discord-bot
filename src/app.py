@@ -153,9 +153,13 @@ def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
 async def on_startup():
     await discord_auth.init()
 
+
 @app.get('/teapot')
 async def teapot():
     return HTMLResponse("<h1>This is a teapot 🫖</h1>", status_code=418)
+@app.get('/hello')
+async def hello():
+    return HTMLResponse("<h1>Hello, world!</h1>")
 
 
 @app.get('/', response_class=HTMLResponse)
@@ -194,8 +198,8 @@ async def user(request: Request):
     if getenv("DEBUG"):
         login_url = request.url_for('login')
         return HTMLResponse(f'Login required. <a href="{login_url}">Login</a>', status_code=403)
-    return RedirectResponse(request.url_for('login'), status_code=403)
-    return RedirectResponse(request.url_for('index'), status_code=403) #? maybe this instead ?
+    #return RedirectResponse(request.url_for('login'), status_code=403)
+    return RedirectResponse(request.url_for('index'), status_code=403)
 
 
 @app.get('/login')
@@ -211,22 +215,25 @@ async def login(
     if not ticket:
         # No ticket, the request come from end user, send to CAS login
         cas_login_url = cas_client.get_login_url()
-        print('CAS login URL: %s', cas_login_url)
+        logging.debug('CAS login URL: %s', cas_login_url)
         return RedirectResponse(cas_login_url)
 
     # There is a ticket, the request come from CAS as callback.
     # need call `verify_ticket()` to validate ticket and get user profile.
-    print('ticket: %s', ticket)
-    print('next: %s', next)
+    logging.debug('ticket: %s', ticket)
+    logging.debug('next: %s', next)
 
     user, attributes, pgtiou = await cas_client.verify_ticket(ticket)
 
-    print(
+    logging.debug(
         'CAS verify ticket response: user: %s, attributes: %s, pgtiou: %s',
         user, attributes, pgtiou)
 
     if not user:
-        return HTMLResponse('Failed to verify ticket. <a href="/login">Login</a>')
+        login_url = request.url_for('login')
+        if getenv("DEBUG"):
+            return HTMLResponse(f'Failed to verify ticket. <a href="{login_url}">Login</a>')
+        return RedirectResponse(request.url_for('login'))
     else:  # Login successfully, redirect according `next` query parameter.
         response = RedirectResponse(next)
         request.session['user'] = dict(user=user)
@@ -239,10 +246,11 @@ async def logout(request: Request):
     if user:
         redirect_url = request.url_for('logout_callback')
         cas_logout_url = cas_client.get_logout_url(redirect_url)
-        print('CAS logout URL: %s', cas_logout_url)
+        logging.debug('CAS logout URL: %s', cas_logout_url)
         return RedirectResponse(cas_logout_url)
     else:
-        return HTMLResponse('Not logged in. <a href="/login">Login</a>')
+        login_url = request.url_for('login')
+        return HTMLResponse(f'Not logged in. <a href={login_url}>Login</a>')
         return RedirectResponse(request.url_for('login'))
 
 
@@ -251,7 +259,8 @@ def logout_callback(request: Request):
     # redirect from CAS logout request after CAS logout successfully
     # response.delete_cookie('username')
     request.session.pop("user", None)
-    return HTMLResponse('Logged out from CAS. <a href="/login">Login</a>')
+    login_url = request.url_for('login')
+    return HTMLResponse(f'Logged out from CAS. <a href="{login_url}">Login</a>')
     return RedirectResponse(request.url_for('index'))
 
 
@@ -300,7 +309,7 @@ async def discord_callback(request: Request, code: str, state: str):
 
         user: DiscordUser = await get_user(token=token)
         if getenv("DEBUG"):
-            logging.debug(f"discord_callback: user={user}")
+            logging.debug(f"discord_callback: get_user: {user}")
         ##user: DiscordUser = await discord_auth.user(request=request)
         request.session['discord_username'] = user.username+(str(user.discriminator) if user.discriminator else "") # ?
         request.session["discord_global_name"] = user.global_name
@@ -336,12 +345,11 @@ async def discord_callback(request: Request, code: str, state: str):
 #! needed ?
 @app.get(
     "/authenticated",
-    dependencies=[Depends(discord_auth.requires_authorization)],
     response_model=bool,
 )
-async def isAuthenticated(token: str = Depends(discord_auth.get_token)):
+async def isAuthenticated(request: Request):
     try:
-        auth = await discord_auth.isAuthenticated(token)
+        auth = await discord_auth.isAuthenticated(token=request.session['discord_token'])
         return auth
     except Unauthorized:
         return False
