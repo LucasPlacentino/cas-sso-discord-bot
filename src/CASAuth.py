@@ -40,7 +40,10 @@ class CASAuth:
         # Send the request
         #resp = requests.get(cas_ticket_url.url)
         async with AsyncClient(app=app) as ac:
-            response = await ac.get(cas_ticket_url.url, cert=os.getenv("CAS_CERT_PATH")) #! cert needed ?
+            if os.getenv("CAS_USE_CUSTOM_CERT", False):
+                response = await ac.get(cas_ticket_url.url, cert=os.getenv("CAS_CERT_PATH")) #! cert needed ?
+            else:
+                response = await ac.get(cas_ticket_url.url)
         
         if response.status_code != 200:
             #return None
