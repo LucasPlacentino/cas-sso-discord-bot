@@ -57,8 +57,21 @@ logging.info("Version:"+str(VERSION))
 #    finally:
 #        db.close()
 
-app = FastAPI(title=__name__)
-app = FastAPI(title=getenv("APP_NAME"), description=getenv("APP_DESCRIPTION"), version=VERSION)
+description = f"""
+{getenv("APP_DESCRIPTION")}
+
+_Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](https://github.com/LucasPlacentino/cas-sso-discord-bot)_
+"""
+
+#app = FastAPI(title=__name__)
+app = FastAPI(
+    title=getenv("APP_NAME"),
+    description=getenv("APP_DESCRIPTION"),
+    version=VERSION,
+    openapi_url=None,
+    docs_url=None,
+    redoc_url=None
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 cas_client = CASClient(
