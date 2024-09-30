@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.jinja' %}
 
 {% block content %}
 <div class="username">user: {{ g.user['username'] }}</div>
@@ -8,7 +8,7 @@
         <div class="gjs-row" id="ibzh2s">
             <div class="gjs-row" id="iwp1uq">
                 <div class="gjs-cell" id="iwc1yl">
-                    <div class="flex-title" id="isl2q">Hello, <i id="ibgfgw">{{ username }}<!--Théodore
+                    <div class="flex-title" id="isl2q">{{ lang_str("hello", current_lang) }}Hello, <i id="ibgfgw">{{ username }}<!--Théodore
                         Verhaegen--><!--{{ user.name }} {{ user.surname }}--></i>
                     </div>
                 </div>

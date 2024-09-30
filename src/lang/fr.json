@@ -1,0 +1,13 @@
+{
+    "login": "Se connecter",
+    "logout": "Déconnexion",
+    "username": "Nom d'utilisateur",
+    "email": "Adresse email",
+    "discord_name": "Nom d'utilisateur Discord",
+    "discord_description": "TODO",
+    "main_title": "Discord ULB CAS Auth Bot",
+    "main_description": "Reliez votre compte Discord avec votre compte ULB afin d'accéder aux serveurs Discord réservés à la communauté étudiante",
+    "link_to_discord": "Lier compte Discord",
+    "unlink_from_discord": "Délier compte Discord",
+    "hello": "Bonjour"
+}

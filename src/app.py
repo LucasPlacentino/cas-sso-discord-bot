@@ -24,10 +24,11 @@ from dotenv import load_dotenv
 load_dotenv()
 import logging
 import platform
+from time import time
 
 from httpx import AsyncClient
 
-from lang import lang_str
+from lang import lang_str, lang_list, DEFAULT_LANG
 
 from bot import Bot # TODO: implement bot
 
@@ -43,7 +44,6 @@ if getenv("DEBUG"):
     logging.basicConfig(level=logging.DEBUG)
 
 logging.info("Launching app... Name:"+str(getenv("APP_NAME")))
-logging.info("Description:"+str(getenv("APP_DESCRIPTION")))
 logging.info("Version:"+str(VERSION))
 
 #from models import User, UsersDB #?
@@ -99,6 +99,7 @@ DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://githu
 #    permissions=???
 #)
 
+
 templates = Jinja2Templates(directory="templates")
 
 def env_var(key: str, default: Optional[str] = None):
@@ -108,8 +109,10 @@ def env_var(key: str, default: Optional[str] = None):
         return ""
     return value
 
+# Provide Python functions inside Jinja templates :
 templates.env.globals.update(env_var=env_var) # or templates.env.filter["env_var"] ?
-templates.env.globals.update(lang_str=lang_str)
+templates.env.globals.update(lang_str=lang_str) # get string from language file
+templates.env.globals.update(time=time) # get current time
 
 
 def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
@@ -174,53 +177,52 @@ async def teapot():
 async def hello():
     return HTMLResponse("<h1>Hello, world!</h1>")
 
+@app.get('/', response_class=RedirectResponse)
+async def index_without_lang():
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/")
 
-@app.get('/', response_class=HTMLResponse)
-async def index(request: Request):
+@app.get('/{lang}/', response_class=HTMLResponse)
+async def index(request: Request, lang: str):
     #check if user is already logged in in request.session, redirect to user if so
     user = request.session.get("user")
     if user:
-        return RedirectResponse(request.url_for('user'))
+        return RedirectResponse(url=f"/{lang}/user")
     
-    return templates.TemplateResponse(name="index.html", context={"request": request,"hello": "world"})
+    return templates.TemplateResponse(name="index.jinja", context={"request": request,"hello": "world", "current_lang": lang, "lang_list": lang_list})
 
 @app.get('/profile')
-async def profile(request: Request):
-    return RedirectResponse(request.url_for('user'))
+async def profile_without_lang(request: Request):
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user")
+@app.get('/{lang}/profile')
+async def profile(request: Request, lang: str):
+    return RedirectResponse(url=f"/{lang}/user")
 @app.get('/me')
-async def me(request: Request):
-    return RedirectResponse(request.url_for('user'))
+async def me_without_lang(request: Request):
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user")
+@app.get('/{lang}/me')
+async def me(request: Request, lang: str):
+    return RedirectResponse(url=f"/{lang}/user")
 
-# TODO: check for language and return respective templates, like:
-"""
-SUPPORTED_LANG = ["fr", "en"]
+
+@app.get('/user', response_class=RedirectResponse)
+async def user_without_lang():
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user")
 
 @app.get('/{lang}/user', response_class=HTMLResponse)
 async def user(request: Request, lang: str):
-    if lang not in SUPPORTED_LANG:
-        return raise HTTPException(status_code=404, detail="Language not supported")
-        # OR REDIRECT TO /fr/ ?
-        #user(request, "fr")
-        
-    template_path = f"{lang}/user.html"
-    return templates.TemplateResponse(name=template_path, context={"request": request})
-"""
-
-@app.get('/user', response_class=HTMLResponse)
-async def user(request: Request):
     print(request.session.get("user"))
     user = request.session.get("user")
     if getenv("DEBUG"):
         logging.debug(f"user: {user}")
     if user:
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return templates.TemplateResponse(name="user_with_discord.html", context={"request": request,"cas_username": user, "discord_id": request.session['discord_id'], "discord_username": request.session['discord_username']})
+            return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": lang_list})
         else:
             if getenv("DEBUG"):
                 cas_user = str(user['user'])
                 logout_url = request.url_for('logout')
                 return HTMLResponse(f'Logged in as {cas_user}. <a href="{logout_url}">Logout</a>')
-            return templates.TemplateResponse(name="user.html", context={"request": request,"cas_username": user})
+            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": user, "current_lang": lang, "lang_list": lang_list})
     elif request.session.get("discord_token"):
         logging.debug("user: discord_token exists but user is not CAS authenticated")
     if getenv("DEBUG"):
@@ -261,7 +263,7 @@ async def login(
         login_url = request.url_for('login')
         if getenv("DEBUG"):
             return HTMLResponse(f'Failed to verify ticket. <a href="{login_url}">Login</a>')
-        return RedirectResponse(request.url_for('login'))
+        return RedirectResponse(login_url)
     else:  # Login successfully, redirect according `next` query parameter.
         response = RedirectResponse(next)
         request.session['user'] = dict(user=user)
@@ -277,8 +279,9 @@ async def logout(request: Request):
         logging.debug('CAS logout URL: %s', cas_logout_url)
         return RedirectResponse(cas_logout_url)
     else:
-        login_url = request.url_for('login')
-        return HTMLResponse(f'Not logged in. <a href={login_url}>Login</a>')
+        #login_url = request.url_for('login')
+        #return HTMLResponse(f'Not logged in. <a href={login_url}>Login</a>')
+        
         return RedirectResponse(request.url_for('login'))
 
 
@@ -287,8 +290,10 @@ def logout_callback(request: Request):
     # redirect from CAS logout request after CAS logout successfully
     # response.delete_cookie('username')
     request.session.pop("user", None)
-    login_url = request.url_for('login')
-    return HTMLResponse(f'Logged out from CAS. <a href="{login_url}">Login</a>')
+    
+    #login_url = request.url_for('login')
+    #return HTMLResponse(f'Logged out from CAS. <a href="{login_url}">Login</a>')
+    
     return RedirectResponse(request.url_for('index'))
 
 

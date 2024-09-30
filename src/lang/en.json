@@ -1,0 +1,13 @@
+{
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "email": "Email address",
+    "discord_name": "Discord username",
+    "discord_description": "TODO",
+    "main_title": "Discord ULB CAS Auth Bot",
+    "main_description": "TODO",
+    "link_to_discord": "Link Discord account",
+    "unlink_from_discord": "Unlink Discord account",
+    "hello": "Hello"
+}

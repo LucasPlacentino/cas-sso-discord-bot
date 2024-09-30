@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %} {% endblock %} - ULB Discord CAS Auth</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}{% if env_var('DEBUG', False) %}?reload-{{ time() }}{% endif %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    
+</head>
+<body>
+    <header class="header" id="ikn7eu">
+        <!-- header -->
+    </header>
+    <!--<div class="content">-->
+        {% block content %} {% endblock %}
+    <!--</div>-->
+    <footer class="footer-under" id="ikn8eu" style="width: 100%; background-color: {{ env_var('MAIN_COLOR', '#070a4b') }}">
+        <!-- footer -->
+        <div class="footer-container">
+            <div class="footer-column footer-column-main">
+                This is a footer.
+                <ul>
+                    <li><a href="{{ env_var('HELP_LINK')|safe }}">Help</a></li>
+                </ul>
+                {{ env_var('APP_NOTICE', '')|safe }}
+            </div>
+            <div class="footer-column footer-column-secondary" style="position: relative;">
+                <div class="lang-selector" style="position: absolute; top: 0; right: 0;">
+                    {% for lang in lang_list %}
+                        {% if lang == current_lang %}
+                            <a class="lang-button-selected" style="border-color: {{ env_var('MAIN_COLOR', '#070a4b') }}; color: {{ env_var('MAIN_COLOR', '#070a4b') }};">{{ lang.upper() }}</a>
+                        {% else %}
+                            <a class="lang-button" href="{{ request.url.path.replace('/' + current_lang, '/' + lang, 1) }}">{{ lang.upper() }}</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <br><br>
+                <div class="copyright-notice" style="position: absolute; bottom: 0; right: 0;">
+                    &copy; {{ env_var('COPYRIGHT_YEAR', 2024) }} {{ env_var('APP_NAME') }} - Version {{ env_var('APP_VERSION', 1) }}
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

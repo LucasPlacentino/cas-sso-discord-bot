@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.jinja' %}
 
 {% block content %}
 <!--<div class="cas-login"><a href="{{ url_for('login') }}">Login</a></div>-->
@@ -18,7 +18,7 @@
         </div>
         <div class="gjs-title-row" id="i6uu1">
             <div class="gjs-cell" id="it38h">
-                <div class="flex-title" id="if6j5">{{ env_var('APP_NAME', 'Discord CAS Auth Bot') }}</div>
+                <div class="flex-title" id="if6j5">{{ lang_str("main_title", current_lang)|safe }}</div>
             </div>
         </div>
         <div id="ixr83">
@@ -27,12 +27,12 @@
         </div>
         <div class="gjs-row" id="iayhk">
             <div class="gjs-cell" id="iqrik">
-                <div class="flex-desc" id="il3a7">{{ env_var('APP_DESCRIPTION', 'Connect through CAS and Discord to get your Discord role on the server(s)') }}</div>
+                <div class="flex-desc" id="il3a7">{{ lang_str("main_description", current_lang)|safe }}</div>
             </div>
         </div>
         <div class="gjs-row" id="i8ano">
             <div class="gjs-cell" id="iwk22">
-                <a href="{{ url_for('login') }}" id="ulb-login-button" class="button-dark">
+                <a href="{{ url_for('login') }}" id="cas-login-button" class="button-dark" style="background-color: {{ env_var('MAIN_COLOR', '#070a4b') }};">
                     <!-- TODO: change icons at template render (so icon not present at Docker build), use url instead in env var?-->
                     <img src="{{ env_var('CAS_ICON_URL', 'https://apereo.github.io/cas/images/cas_logo.png') }}" class="button-icon" />
                     <!--<img src="{{ url_for('static', path='images/cas_icon.png') }}" class="button-icon" />-->
@@ -40,7 +40,7 @@
                     <!--
                     <img src="https://actus.ulb.be/medias/photo/logo-ulb_1585322164632-jpg?ID_FICHE=19524"
                         class="button-icon" />-->
-                    <span>{{ lang_str("login") }}</span>
+                    <span>{{ lang_str("login", current_lang)|safe }}</span>
                 </a>
             </div>
         </div>
