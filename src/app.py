@@ -191,6 +191,21 @@ async def profile(request: Request):
 async def me(request: Request):
     return RedirectResponse(request.url_for('user'))
 
+# TODO: check for language and return respective templates, like:
+"""
+SUPPORTED_LANG = ["fr", "en"]
+
+@app.get('/{lang}/user', response_class=HTMLResponse)
+async def user(request: Request, lang: str):
+    if lang not in SUPPORTED_LANG:
+        return raise HTTPException(status_code=404, detail="Language not supported")
+        # OR REDIRECT TO /fr/ ?
+        #user(request, "fr")
+        
+    template_path = f"{lang}/user.html"
+    return templates.TemplateResponse(name=template_path, context={"request": request})
+"""
+
 @app.get('/user', response_class=HTMLResponse)
 async def user(request: Request):
     print(request.session.get("user"))
