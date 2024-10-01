@@ -76,10 +76,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 cas_client = CASClient(
     version=getenv('CAS_VERSION', 1),
-    service_url=getenv('CAS_SERVICE_URL'),
+    #service_url=getenv('CAS_SERVICE_URL', "http://localhost:8000/login"),
+    service_url=str(getenv('SITE_URL', "http://localhost:8000"))+"/login",
     server_url=getenv('CAS_SERVER_URL'),
 )
-app.add_middleware(SessionMiddleware, secret_key=getenv('SECRET'))
+app.add_middleware(SessionMiddleware, secret_key=getenv('APP_SECRET_KEY'))
 
 discord_auth = DiscordOAuthClient(
     client_id=getenv('DISCORD_CLIENT_ID'),
