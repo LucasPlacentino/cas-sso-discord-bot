@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from httpx import AsyncClient
 from furl import furl
 import xml.etree.ElementTree as ET
+import logging
 
 from models import User
 from app import app
@@ -21,7 +22,6 @@ Code originally from DocHub: https://github.com/DocHub-ULB/DocHub
 
 class CASAuth:
     CAS_ENDPOINT = os.getenv("CAS_ENDPOINT")
-    LOGIN_METHOD = "cas"
     XML_NAMESPACES = {
             "cas": "http://www.yale.edu/tp/cas",
         }
@@ -36,6 +36,7 @@ class CASAuth:
         cas_ticket_url.path = "/proxyValidate" # os.getenv("CAS_TICKET_URL_PATH")
         cas_ticket_url.args["ticket"] = ticket
         cas_ticket_url.args["service"] = self.get_service_url()
+        # cas_ticket_url = "https://{self.CAS_ENDPOINT}/proxyValidate?ticket={ticket}&service={service_url}"
         
         # Send the request
         #resp = requests.get(cas_ticket_url.url)
@@ -79,7 +80,7 @@ class CASAuth:
         success = tree.find(
             "./cas:authenticationSuccess", namespaces=self.XML_NAMESPACES
         )
-        if not success:
+        if success is None:
             failure = tree.find(
                 "./cas:authenticationFailure", namespaces=self.XML_NAMESPACES
             )
@@ -92,15 +93,8 @@ class CASAuth:
         if netid_node is not None:
             netid = netid_node.text
         else:
+            logging.error(f"User has no netid in CAS response")
             raise CasParseError("UNKNOWN_STRUCTURE", xml)
-
-        email_node = success.find(
-            "./cas:attributes/cas:mail", namespaces=self.XML_NAMESPACES
-        )
-        if email_node is not None:
-            email = email_node.text
-        else:
-            email = f"{netid}@ulb.ac.be"
 
         first_name_node = success.find(
             "./cas:attributes/cas:givenName", namespaces=self.XML_NAMESPACES
@@ -109,16 +103,24 @@ class CASAuth:
             "./cas:attributes/cas:sn", namespaces=self.XML_NAMESPACES
         )
 
+        email_node = success.find(
+            "./cas:attributes/cas:mail", namespaces=self.XML_NAMESPACES
+        )
+        if email_node is not None:
+            email = email_node.text
+        else:
+            email = f"{netid}@ulb.ac.be" # or f"{netid}@ulb.be" ?
+            logging.error(f"User {netid} has no email address in CAS response")
+            #raise CasParseError("UNKNOWN_STRUCTURE", xml)
+
         return {
             "netid": netid, # userid ?
             "email": email,
-            "first_name": first_name_node.text
-            if first_name_node is not None
-            else netid,
+            "first_name": first_name_node.text if first_name_node is not None else netid,
             "last_name": last_name_node.text if last_name_node is not None else netid,
         }
 
-
+    #TODO: adapt
     @classmethod
     def get_login_url(cls):
         url = furl(cls.CAS_ENDPOINT)
@@ -127,12 +129,14 @@ class CASAuth:
 
         return url.url
 
+    #TODO: adapt
     @classmethod
     def get_service_url(cls, request: Request):
         url = furl(os.getenv("CAS_SERVICE_BASE_URL")) #settings.BASE_URL)
         url.path = request.url_for("auth-ulb") # os.getenv("CAS_SERVICE_PATH")
         return url.url
 
+    #TODO: adapt
     def authenticate(self, request, ticket=None):
         if not ticket:
             return None

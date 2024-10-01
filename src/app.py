@@ -58,7 +58,7 @@ logging.info("Version:"+str(VERSION))
 #        db.close()
 
 description = f"""
-{lang_str('main_description')}
+{lang_str('main_description', DEFAULT_LANG)}
 
 _Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](https://github.com/LucasPlacentino/cas-sso-discord-bot)_
 """
@@ -66,7 +66,7 @@ _Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](http
 #app = FastAPI(title=__name__)
 app = FastAPI(
     title=getenv("APP_NAME"),
-    description=str(getenv("APP_DESCRIPTION", lang_str('main_description'))),
+    description=str(getenv("APP_DESCRIPTION", lang_str('main_description', DEFAULT_LANG))),
     version=VERSION,
     openapi_url=None,
     docs_url=None,
@@ -234,9 +234,7 @@ async def user(request: Request, lang: str):
 
 
 @app.get('/login')
-async def login(
-    request: Request, next: Optional[str] = None,
-    ticket: Optional[str] = None):
+async def login(request: Request, next: Optional[str] = None, ticket: Optional[str] = None):
     if request.session.get("user", None):
         # Already logged in
         return RedirectResponse(request.url_for('user'))
@@ -246,13 +244,13 @@ async def login(
     if not ticket:
         # No ticket, the request come from end user, send to CAS login
         cas_login_url = cas_client.get_login_url()
-        logging.debug('CAS login URL: %s', cas_login_url)
+        logging.debug(f'CAS login URL: {cas_login_url}')
         return RedirectResponse(cas_login_url)
 
     # There is a ticket, the request come from CAS as callback.
     # need call `verify_ticket()` to validate ticket and get user profile.
-    logging.debug('ticket: %s', ticket)
-    logging.debug('next: %s', next)
+    logging.debug(f'ticket: {ticket}')
+    logging.debug(f'next: {next}')
 
     user, attributes, pgtiou = await cas_client.verify_ticket(ticket)
 
