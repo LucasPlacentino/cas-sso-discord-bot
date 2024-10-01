@@ -58,7 +58,7 @@ logging.info("Version:"+str(VERSION))
 #        db.close()
 
 description = f"""
-{getenv("APP_DESCRIPTION")}
+{lang_str('main_description')}
 
 _Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](https://github.com/LucasPlacentino/cas-sso-discord-bot)_
 """
@@ -66,7 +66,7 @@ _Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](http
 #app = FastAPI(title=__name__)
 app = FastAPI(
     title=getenv("APP_NAME"),
-    description=getenv("APP_DESCRIPTION"),
+    description=str(getenv("APP_DESCRIPTION", lang_str('main_description'))),
     version=VERSION,
     openapi_url=None,
     docs_url=None,
