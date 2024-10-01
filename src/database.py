@@ -16,7 +16,7 @@ db_type = os.getenv("DB_TYPE")
 
 engine = create_async_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if db_type == "sqlite" else {}
+    connect_args={"check_same_thread": False} if db_type == "sqlite" else {},
     echo=True if os.getenv("DEBUG") else False
     )
 SessionLocal = sessionmaker(
