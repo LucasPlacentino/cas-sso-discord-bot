@@ -39,9 +39,10 @@ VERSION = "0.2.0"
 
 
 # ------------
-
+DEBUG=False
 if getenv("DEBUG"):
     logging.basicConfig(level=logging.DEBUG)
+    DEBUG=True
 
 logging.info("Launching app... Name:"+str(getenv("APP_NAME")))
 logging.info("Version:"+str(VERSION))
@@ -89,7 +90,7 @@ discord_auth = DiscordOAuthClient(
     redirect_uri=str(getenv("SITE_URL", "http://localhost:8000"))+"/discord-callback",
     scopes=("identify","guilds")#, "guilds", "email") # scopes default: just "identify"
 )
-logging.debug(f"discord_auth scopes: {discord_auth.scopes}")
+logging.info(f"discord_auth scopes: {discord_auth.scopes.replace('%20', '_')}")
 DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
 #DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token" # no version in url ?
 
@@ -168,6 +169,7 @@ def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
 
 @app.on_event("startup")
 async def on_startup():
+    logging.info("Starting up...")
     await discord_auth.init()
 
 
@@ -213,20 +215,21 @@ async def user_without_lang():
 async def user(request: Request, lang: str):
     print(request.session.get("user"))
     user = request.session.get("user")
-    if getenv("DEBUG"):
+    if DEBUG:
         logging.debug(f"user: {user}")
     if user:
         if await discord_auth.isAuthenticated(request.session['access_token']):
             return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": lang_list})
         else:
-            if getenv("DEBUG"):
+            if DEBUG:
                 cas_user = str(user['user'])
                 logout_url = request.url_for('logout')
                 return HTMLResponse(f'Logged in as {cas_user}. <a href="{logout_url}">Logout</a>')
             return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": user, "current_lang": lang, "lang_list": lang_list})
     elif request.session.get("discord_token"):
-        logging.debug("user: discord_token exists but user is not CAS authenticated")
-    if getenv("DEBUG"):
+        if DEBUG:
+            logging.debug("user: discord_token exists but user is not CAS authenticated")
+    if DEBUG:
         login_url = request.url_for('login')
         return HTMLResponse(f'Login required. <a href="{login_url}">Login</a>', status_code=403)
     #return RedirectResponse(request.url_for('login'), status_code=403)
@@ -244,23 +247,24 @@ async def login(request: Request, next: Optional[str] = None, ticket: Optional[s
     if not ticket:
         # No ticket, the request come from end user, send to CAS login
         cas_login_url = cas_client.get_login_url()
-        logging.debug(f'CAS login URL: {cas_login_url}')
+        if DEBUG:
+            logging.debug(f'CAS login URL: {cas_login_url}')
         return RedirectResponse(cas_login_url)
 
     # There is a ticket, the request come from CAS as callback.
     # need call `verify_ticket()` to validate ticket and get user profile.
-    logging.debug(f'ticket: {ticket}')
-    logging.debug(f'next: {next}')
+    if DEBUG:
+        logging.debug(f'ticket: {ticket}')
+        logging.debug(f'next: {next}')
 
     user, attributes, pgtiou = await cas_client.verify_ticket(ticket)
 
-    logging.debug(
-        'CAS verify ticket response: user: %s, attributes: %s, pgtiou: %s',
-        user, attributes, pgtiou)
+    if DEBUG:
+        logging.debug('CAS verify ticket response: user: %s, attributes: %s, pgtiou: %s', user, attributes, pgtiou)
 
     if not user:
         login_url = request.url_for('login')
-        if getenv("DEBUG"):
+        if DEBUG:
             return HTMLResponse(f'Failed to verify ticket. <a href="{login_url}">Login</a>')
         return RedirectResponse(login_url)
     else:  # Login successfully, redirect according `next` query parameter.
@@ -275,7 +279,8 @@ async def logout(request: Request):
     if user:
         redirect_url = request.url_for('logout_callback')
         cas_logout_url = cas_client.get_logout_url(redirect_url)
-        logging.debug('CAS logout URL: %s', cas_logout_url)
+        if DEBUG:
+            logging.debug('CAS logout URL: %s', cas_logout_url)
         return RedirectResponse(cas_logout_url)
     else:
         #login_url = request.url_for('login')
@@ -309,7 +314,7 @@ async def discord_login(request: Request):
 
     #logging.debug("discord_login: "+discord_auth.get_oauth_login_url(state="my_test_state"))
     return RedirectResponse(discord_auth.get_oauth_login_url(
-        state="my_test_state" #TODO: generate state token ? based on user's session/request? see above commented
+        state="my_test_state" #TODO: generate state token ? based on user's session/request (like: used as seed)? see above commented
     )) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
     #return await discord_auth.login(request) # ?
     #return await RedirectResponse(discord_auth.oauth_login_url) # or discord_auth.get_oauth_login_url(state="my state")
@@ -332,7 +337,7 @@ async def get_user_guilds(token: str = Depends(discord_auth.get_token)):
 @app.get('/discord-callback')
 async def discord_callback(request: Request, code: str, state: str):
     cas_user = request.session.get("user")
-    if getenv("DEBUG") or cas_user:
+    if DEBUG or cas_user:
         token, refresh_token = await discord_auth.get_access_token(code) # ?
         #if getenv("DEBUG"):
         #    logging.debug(f"discord_callback: token={token}, refresh_token={refresh_token}")
@@ -340,7 +345,7 @@ async def discord_callback(request: Request, code: str, state: str):
         request.session['discord_token'] = token #await discord_auth.get_token(request=request) #! or just token from above ?
 
         user: DiscordUser = await get_user(token=token)
-        if getenv("DEBUG"):
+        if DEBUG:
             logging.debug(f"discord_callback: get_user: {user}")
         ##user: DiscordUser = await discord_auth.user(request=request)
         request.session['discord_username'] = user.username+(str(user.discriminator) if user.discriminator else "") # ?
@@ -392,16 +397,19 @@ async def discord_logout(request: Request):#, token: str = Depends(discord_auth.
     try:
         #if await discord_auth.isAuthenticated(token):
         if await discord_auth.isAuthenticated(request.session['discord_token']):
-            logging.debug("discord_logout: isAuthenticated=True")
+            if DEBUG:
+                logging.debug("discord_logout: isAuthenticated=True")
     #if await discord_auth.isAuthenticated(request.session['access_token']):
             
             # TODO: sufficient ?
 
             #await discord_auth.revoke(request.session['discord_token']) #? not in fastapi-discord ?
             # see https://github.com/treeben77/discord-oauth2.py/blob/main/discordoauth2/__init__.py#L242
-            logging.debug("discord_logout: revoking discord_token")
+            if DEBUG:
+                logging.debug("discord_logout: revoking discord_token")
             await revoke_discord_token(request.session['discord_token'], "access_token", request.session['discord_username'])
-            logging.debug("discord_logout: revoking discord_refresh_token")
+            if DEBUG:
+                logging.debug("discord_logout: revoking discord_refresh_token")
             await revoke_discord_token(request.session['discord_refresh_token'], "refresh_token", request.session['discord_username'])
 
             request.session.pop("discord_token", None)
@@ -434,7 +442,8 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
         )
         
     if response.status_code == 200:# or response.status_code.OK ?:
-        logging.debug(f"revoke_discord_token: Discord token (type:{token_type}) revoked successfully for user:{user}.")
+        if DEBUG:
+            logging.debug(f"revoke_discord_token: Discord token (type:{token_type}) revoked successfully for user:{user}.")
         return True
     elif response.status_code == 401:
         logging.error(f"revoke_discord_token: 401 This AccessToken does not have the necessary scope.")
@@ -503,10 +512,10 @@ async def run_bot():
 # ? needed ?
 async def run_web():
     try:
-        logging.debug("Run webapp")
+        logging.info("Run webapp")
         #await uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', 'localhost')) # ?
     except:
-        logging.debug("Webapp fail")
+        logging.error("Webapp fail")
     
 if __name__ == '__main__':
     import uvicorn
