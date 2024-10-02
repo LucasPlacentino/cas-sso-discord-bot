@@ -9,5 +9,6 @@
     "main_description": "Reliez votre compte Discord avec votre compte ULB afin d'accéder aux serveurs Discord réservés à la communauté étudiante",
     "link_to_discord": "Lier compte Discord",
     "unlink_from_discord": "Délier compte Discord",
-    "hello": "Bonjour"
+    "hello": "Bonjour",
+    "discord_not_linked": "Vous n'avez <b>pas</b> encore relié votre compte Discord, appuyez alors sur le bouton ci-dessous :"
 }

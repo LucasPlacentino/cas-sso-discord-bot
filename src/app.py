@@ -84,7 +84,11 @@ cas_client = CASClient(
 )
 CAS_VALIDATE_PATH = getenv('CAS_VALIDATE_PATH', "/serviceValidate") # or "/proxyValidate" ?
 
-app.add_middleware(SessionMiddleware, secret_key=getenv('APP_SECRET_KEY'))
+APP_SECRET_KEY = getenv('APP_SECRET_KEY')
+if APP_SECRET_KEY is None:
+    logging.error("APP_SECRET_KEY not set")
+    exit(1)
+app.add_middleware(SessionMiddleware, secret_key=APP_SECRET_KEY)
 
 discord_auth = DiscordOAuthClient(
     client_id=getenv('DISCORD_CLIENT_ID'),
@@ -238,9 +242,13 @@ async def user_without_lang(request: Request):
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 
 @app.get('/{lang}/user', response_class=HTMLResponse)
-async def user(request: Request, lang: str):
+async def user(request: Request, lang: str, debug: Optional[str] = None):
     if DEBUG:
         logging.debug(request.session.get("user"))
+        if debug == APP_SECRET_KEY:
+            logging.debug("Debug mode, user page accessed with app key")
+            logging.debug(request.session)
+            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "current_lang": lang, "lang_list": lang_list})
     user = request.session.get("user")
     if DEBUG:
         logging.debug(f"user: {user}")

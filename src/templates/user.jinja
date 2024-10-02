@@ -1,31 +1,31 @@
 {% extends 'base.jinja' %}
 
 {% block content %}
-<div class="username">user: {{ g.user['username'] }}</div>
+{% if is_debug() %}<div class="username">user: {{ cas_username }}</div>{% endif %}
 
 <section class="flex-sect" id="iqw1p">
     <div class="container-width" id="ixcsj">
         <div class="gjs-row" id="ibzh2s">
             <div class="gjs-row" id="iwp1uq">
                 <div class="gjs-cell" id="iwc1yl">
-                    <div class="flex-title" id="isl2q">{{ lang_str("hello", current_lang) }}Hello, <i id="ibgfgw">{{ username }}<!--Théodore
-                        Verhaegen--><!--{{ user.name }} {{ user.surname }}--></i>
+                    <div class="flex-title" id="isl2q">{{ lang_str("hello", current_lang) }}, <i style="color: {{ env_var('MAIN_COLOR', '#070a4b') }};" id="ibgfgw">{{ cas_username }}<!--Théodore
+                        Verhaegen--><!-- user.name user.surname --></i>
                     </div>
                 </div>
             </div>
             <div class="gjs-title-row" id="iggerx">
                 <div class="gjs-cell" id="i87qsk">
-                    <i id="ijsy0p">{{ email }}<!--theodore.verhaegen@ulb.be-->
-                        <!--{{ user.email }}-->
+                    <i style="color: {{ env_var('MAIN_COLOR', '#070a4b') }};" id="ijsy0p">{{ cas_email }}<!--theodore.verhaegen@ulb.be-->
+                        <!-- user.email -->
                     </i>
-                    <a href="{{ url_for('logout') }}" class="button-light logout-button" id="ihlfcn"><span id="i2e4vk">Logout</span><i
+                    <a href="{{ url_for('logout') }}" class="button-light logout-button" id="ihlfcn"><span id="i2e4vk">{{ lang_str("logout", current_lang)|safe }}</span><i
                             style="font-size: 1.4em; margin-left: 1rem;" class="fa fa-sign-out logout-icon">
                         </i></a>
                 </div>
             </div>
             <div class="gjs-row" id="i3x5f">
                 <div class="gjs-cell" id="ibqro">
-                    <div id="ibxju">Vous n'avez <b>pas</b> encore relié votre compte Discord, appuyez alors sur le bouton ci-dessous :</div>
+                    <div id="ibxju">{{ lang_str('discord_not_linked', current_lang)|safe }}</div>
                 </div>
             </div>
             <div class="gjs-row" id="ii63e">
@@ -33,7 +33,7 @@
                     <a href="{{ url_for('discord_login') }}" class="button-dark" id="discord-button">
                         <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6ca814282eca7172c6_icon_clyde_white_RGB.svg"
                             class="button-icon" />
-                        <span>Discord Login</span>
+                        <span>Discord {{ lang_str("login", current_lang)|safe }}</span>
                     </a>
                 </div>
             </div>
