@@ -33,7 +33,7 @@ class CASAuth:
         
         # Craft request to the CAS provider
         cas_ticket_url = furl(self.CAS_ENDPOINT)
-        cas_ticket_url.path = "/proxyValidate" # os.getenv("CAS_TICKET_URL_PATH")
+        cas_ticket_url.path = "/proxyValidate" # os.getenv("CAS_TICKET_URL_PATH") # or "/serviceValidate" ?
         cas_ticket_url.args["ticket"] = ticket
         cas_ticket_url.args["service"] = self.get_service_url()
         # cas_ticket_url = "https://{self.CAS_ENDPOINT}/proxyValidate?ticket={ticket}&service={service_url}"

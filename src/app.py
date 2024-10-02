@@ -80,7 +80,10 @@ cas_client = CASClient(
     #service_url=getenv('CAS_SERVICE_URL', "http://localhost:8000/login"),
     service_url=str(getenv('SITE_URL', "http://localhost:8000"))+"/login",
     server_url=getenv('CAS_SERVER_URL'),
+    #validate_url=getenv('CAS_VALIDATE_URL', "/serviceValidate"),
 )
+CAS_VALIDATE_PATH = getenv('CAS_VALIDATE_PATH', "/serviceValidate") # or "/proxyValidate" ?
+
 app.add_middleware(SessionMiddleware, secret_key=getenv('APP_SECRET_KEY'))
 
 discord_auth = DiscordOAuthClient(
@@ -181,11 +184,18 @@ async def hello():
     return HTMLResponse("<h1>Hello, world!</h1>")
 
 @app.get('/', response_class=RedirectResponse)
-async def index_without_lang():
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/")
+async def index_without_lang(request: Request):
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
+    if pref_lang in lang_list:
+        if DEBUG:
+            logging.debug(f"index_without_lang: in Accept-Language header: {lang_header} => pref_lang={pref_lang}")
+        return RedirectResponse(url=f"/{pref_lang}/")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=308)
 
 @app.get('/{lang}/', response_class=HTMLResponse)
 async def index(request: Request, lang: str):
+
     #check if user is already logged in in request.session, redirect to user if so
     user = request.session.get("user")
     if user:
@@ -195,37 +205,55 @@ async def index(request: Request, lang: str):
 
 @app.get('/profile')
 async def profile_without_lang(request: Request):
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user")
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
+    if pref_lang in lang_list:
+        return RedirectResponse(url=f"/{pref_lang}/user")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 @app.get('/{lang}/profile')
 async def profile(request: Request, lang: str):
     return RedirectResponse(url=f"/{lang}/user")
 @app.get('/me')
 async def me_without_lang(request: Request):
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user")
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
+    if pref_lang in lang_list:
+        return RedirectResponse(url=f"/{pref_lang}/user")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 @app.get('/{lang}/me')
 async def me(request: Request, lang: str):
     return RedirectResponse(url=f"/{lang}/user")
 
 
 @app.get('/user', response_class=RedirectResponse)
-async def user_without_lang():
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user")
+async def user_without_lang(request: Request):
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
+    if pref_lang in lang_list:
+        return RedirectResponse(url=f"/{pref_lang}/user")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 
 @app.get('/{lang}/user', response_class=HTMLResponse)
 async def user(request: Request, lang: str):
-    print(request.session.get("user"))
+    if DEBUG:
+        logging.debug(request.session.get("user"))
     user = request.session.get("user")
     if DEBUG:
         logging.debug(f"user: {user}")
+    # ---------------- user was CAS authenticated ----------------
     if user:
+        # %%%%%%%%%%%%% user is Discord authenticated %%%%%%%%%%%%%%%%%
         if await discord_auth.isAuthenticated(request.session['access_token']):
             return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": lang_list})
+        # %%%%%%%%%%%%% user is not Discord authenticated %%%%%%%%%%%%%
         else:
             if DEBUG:
                 cas_user = str(user['user'])
                 logout_url = request.url_for('logout')
                 return HTMLResponse(f'Logged in as {cas_user}. <a href="{logout_url}">Logout</a>')
             return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": user, "current_lang": lang, "lang_list": lang_list})
+        # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    # ---------------- user is not CAS authenticated ----------------
     elif request.session.get("discord_token"):
         if DEBUG:
             logging.debug("user: discord_token exists but user is not CAS authenticated")
@@ -234,42 +262,48 @@ async def user(request: Request, lang: str):
         return HTMLResponse(f'Login required. <a href="{login_url}">Login</a>', status_code=403)
     #return RedirectResponse(request.url_for('login'), status_code=403)
     return RedirectResponse(request.url_for('index'), status_code=403)
+    # ---------------------------------------------------------------
 
 
 @app.get('/login')
 async def login(request: Request, next: Optional[str] = None, ticket: Optional[str] = None):
+    service_ticket = ticket # ST from user to verify with CAS server
     if request.session.get("user", None):
         # Already logged in
         return RedirectResponse(request.url_for('user'))
 
     # next = request.args.get('next')
     # ticket = request.args.get('ticket')
-    if not ticket: # first login -> redirect to CAS
+    # ---------------- log in to CAS (redirect to CAS server) --------------------
+    if not service_ticket: # first login -> redirect to CAS
         # No ticket, the request come from end user, send to CAS login
         cas_login_url = cas_client.get_login_url()
         if DEBUG:
             logging.debug(f'CAS login URL: {cas_login_url}')
         return RedirectResponse(cas_login_url)
+    # ------ log in to this service (callback from CAS server with ticket) -------
 
     # There is a ticket, the request come from CAS as callback.
     # need call `verify_ticket()` to validate ticket and get user profile.
     if DEBUG:
-        logging.debug(f'ticket: {ticket}')
+        logging.debug(f'service_ticket: {service_ticket}')
         logging.debug(f'next: {next}')
 
-    user, attributes, pgtiou = await cas_client.verify_ticket(ticket)
+    # Send service ticket (ST) to CAS server to verify, get back user details as xml/dict
+    user_from_cas, attributes_from_cas, pgtiou = await cas_client.verify_ticket(service_ticket) # pgtIou means Proxy Granting Ticket IOU
 
     if DEBUG:
-        logging.debug('CAS verify ticket response: user: %s, attributes: %s, pgtiou: %s', user, attributes, pgtiou)
+        logging.debug('CAS verify service_ticket response: user: %s, attributes: %s, pgtiou: %s', user_from_cas, attributes_from_cas, pgtiou)
 
-    if not user:
+    if not user_from_cas: # Failed to verify service_ticket
         login_url = request.url_for('login')
         if DEBUG:
             return HTMLResponse(f'Failed to verify ticket. <a href="{login_url}">Login</a>')
         return RedirectResponse(login_url)
-    else:  # Login successfully, redirect according `next` query parameter.
-        response = RedirectResponse(next)
-        request.session['user'] = dict(user=user)
+    else:  # Login successfully, redirect according `next` query parameter.? or to /user
+        #response = RedirectResponse(next)
+        response = RedirectResponse(request.url_for('user'))
+        request.session['user'] = dict(user=user_from_cas)
         return response
 
 

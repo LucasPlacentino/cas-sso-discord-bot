@@ -21,7 +21,7 @@
             <div class="footer-column footer-column-main">
                 This is a footer.
                 <ul>
-                    <li><a href="{{ env_var('HELP_LINK')|safe }}">Help</a></li>
+                    <li><a target="_blank" rel="noopener noreferrer" href="{{ env_var('HELP_LINK') }}">Help</a></li>
                 </ul>
                 {{ env_var('APP_NOTICE', '')|safe }}
             </div>
@@ -35,8 +35,10 @@
                         {% endif %}
                     {% endfor %}
                 </div>
-                <br><br>
-                <div class="copyright-notice" style="position: absolute; bottom: 0; right: 0;">
+                <br>
+
+                <div class="copyright-notice" style="text-align: right; position: absolute; bottom: 0; right: 0;">
+                    Help/Webmaster: <a style="text-decoration: none; color: inherit" target="_blank" rel="noopener noreferrer" href="mailto:{{ env_var('HELP_EMAIL') }}"><i>{{ env_var('HELP_EMAIL', 'webmaster@example.org') }}</i></a><br>
                     &copy; {{ env_var('COPYRIGHT_YEAR', 2024) }} {{ env_var('APP_NAME') }} - Version {{ env_var('APP_VERSION', 1) }}
                 </div>
             </div>

@@ -21,6 +21,7 @@ for file in listdir(locales_path):
         lang_code = pre
     elif len(lang_code) != 2: # filename should be a 2-letter language code like "en.json"
         continue
+    lang_code = lang_code.lower()
     print(f"Found locale file: {locales_path}{file} => lang_code: {lang_code}")
     try:
         with open(path.join(locales_path, file), "r", encoding="utf-8") as lang_file:
