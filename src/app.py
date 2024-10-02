@@ -35,12 +35,12 @@ from bot import Bot # TODO: implement bot
 # ------------
 
 
-VERSION = "0.2.0"
+VERSION = "2.0.0-alpha.2"
 
 
 # ------------
 DEBUG=False
-if getenv("DEBUG"):
+if getenv("DEBUG") is not None or getenv("DEBUG") != "":
     logging.basicConfig(level=logging.DEBUG)
     DEBUG=True
 
@@ -114,10 +114,14 @@ def env_var(key: str, default: Optional[str] = None):
         return ""
     return value
 
+def is_debug() -> bool:
+    return DEBUG
+
 # Provide Python functions inside Jinja templates :
 templates.env.globals.update(env_var=env_var) # or templates.env.filter["env_var"] ?
 templates.env.globals.update(lang_str=lang_str) # get string from language file
 templates.env.globals.update(time=time) # get current time
+templates.env.globals.update(is_debug=is_debug) # check if in debug mode
 
 
 def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):

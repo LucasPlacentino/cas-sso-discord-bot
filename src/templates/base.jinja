@@ -11,6 +11,7 @@
 <body>
     <header class="header" id="ikn7eu">
         <!-- header -->
+        {% if is_debug() %}<h3 style="margin: 0; padding: 0; color: white; background-color: crimson;">DEBUG MODE: true</h3>{% endif %}
     </header>
     <!--<div class="content">-->
         {% block content %} {% endblock %}
