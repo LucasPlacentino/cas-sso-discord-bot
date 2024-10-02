@@ -5,13 +5,12 @@ from dotenv import load_dotenv
 #import requests
 from httpx import AsyncClient
 from furl import furl
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET # or from lxml import etree as ET
 import logging
-
-from models import User
-from app import app
 from fastapi import Request
-from .app import DEBUG
+
+from .models import User
+from .app import app, DEBUG
 
 load_dotenv()
 
