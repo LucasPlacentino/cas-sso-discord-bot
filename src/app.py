@@ -244,7 +244,7 @@ async def login(request: Request, next: Optional[str] = None, ticket: Optional[s
 
     # next = request.args.get('next')
     # ticket = request.args.get('ticket')
-    if not ticket:
+    if not ticket: # first login -> redirect to CAS
         # No ticket, the request come from end user, send to CAS login
         cas_login_url = cas_client.get_login_url()
         if DEBUG:

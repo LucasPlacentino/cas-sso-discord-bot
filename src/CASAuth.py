@@ -11,6 +11,7 @@ import logging
 from models import User
 from app import app
 from fastapi import Request
+from .app import DEBUG
 
 load_dotenv()
 
@@ -103,6 +104,20 @@ class CASAuth:
             "./cas:attributes/cas:sn", namespaces=self.XML_NAMESPACES
         )
 
+        id_matricule_node = success.find(
+            "./cas:attributes/cas:supannRefId", namespaces=self.XML_NAMESPACES
+        )
+        complete_name_node = success.find(
+            "./cas:attributes/cas:cn", namespaces=self.XML_NAMESPACES
+        )
+        group_node = success.find(
+            "./cas:attributes/cas:supannRoleEntite", namespaces=self.XML_NAMESPACES
+        )
+        if DEBUG:
+            logging.debug(f"CAS id_matricule_node: {id_matricule_node}")
+            logging.debug(f"CAS complete_name_node: {complete_name_node}")
+            logging.debug(f"CAS group_node: {group_node}")
+
         email_node = success.find(
             "./cas:attributes/cas:mail", namespaces=self.XML_NAMESPACES
         )
@@ -112,6 +127,11 @@ class CASAuth:
             email = f"{netid}@ulb.ac.be" # or f"{netid}@ulb.be" ?
             logging.error(f"User {netid} has no email address in CAS response")
             #raise CasParseError("UNKNOWN_STRUCTURE", xml)
+
+        if DEBUG:
+            all_attributes = success.findall("./cas:attributes/*", namespaces=self.XML_NAMESPACES)
+            for attr in all_attributes:
+                logging.debug(f"CAS attribute: {attr.tag} => {attr.text}")
 
         return {
             "netid": netid, # userid ?
