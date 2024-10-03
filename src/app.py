@@ -2,37 +2,32 @@
 
 from typing import Optional, List
 
-from cas import CASClient # https://github.com/Chise1/fastapi-cas-example
+from cas import CASClient # https://github.com/Chise1/fastapi-cas-example # python_cas ?
 from fastapi import FastAPI, Depends, Request
 from starlette.middleware.sessions import SessionMiddleware
-#from starlette.requests import Request
-#from starlette.responses import Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi_discord import DiscordOAuthClient, RateLimited, Unauthorized # https://github.com/Tert0/fastapi-discord
+#* OR ? :
+#* from starlette_discord.client import DiscordOAuthClient # https://github.com/nwunderly/starlette-discord
 from fastapi_discord import User as DiscordUser
-#from fastapi_discord import Role as DiscordRole #???
+#from fastapi_discord import Role as DiscordRole #?
 from fastapi_discord import Guild as DiscordGuild
 from fastapi_discord.exceptions import ClientSessionNotInitialized
 from fastapi_discord.models import GuildPreview
-#* OR ? :
-#* from starlette_discord.client import DiscordOAuthClient # https://github.com/nwunderly/starlette-discord
 import asyncio
 from os import getenv
 from dotenv import load_dotenv
-load_dotenv()
 import logging
 import platform
 from time import time
-
 from httpx import AsyncClient
 
-from lang import lang_str, lang_list, DEFAULT_LANG
-
 from bot import Bot # TODO: implement bot
+from locales import Locale, DEFAULT_LANG
 
-logger = logging.getLogger("main")
+load_dotenv()
 
 # ------------
 
@@ -41,14 +36,19 @@ VERSION = "2.0.0-alpha.2"
 
 
 # ------------
+
 DEBUG=True if getenv("DEBUG") is not None or getenv("DEBUG") != "" else False
+
+logger = logging.getLogger("app")
+
+#locale: Locale = Locale(debug=DEBUG)
 
 def init():
     if DEBUG:
         #logging.basicConfig(level=logging.DEBUG)
         logging.basicConfig(
             level=logging.DEBUG,
-            format="{asctime} [{pathname}:{lineno}-{levelname}]  {message}", # [{threadName}]
+            format="{asctime} [{threadName}] ({filename}:{lineno}) [{levelname}]  {message}", # [{threadName}]
             style="{",
             datefmt="%Y-%m-%d %H:%M"
         )
@@ -56,7 +56,7 @@ def init():
     else:
         logging.basicConfig(
             level=logging.INFO,
-            format="{asctime} [{pathname}:{lineno}-{levelname}]  {message}", # [{threadName}]
+            format="{asctime} [{filename}:{lineno}-{levelname}]  {message}", # [{threadName}]
             style="{",
             datefmt="%Y-%m-%d %H:%M"
         )
@@ -66,6 +66,7 @@ def init():
     logger.info("### Name: "+str(getenv("APP_NAME")))
     logger.info("### Version: "+str(VERSION))
     logger.info("###------------------------")
+    # ------ init() end ------
 
 #from models import User, UsersDB #?
 #from database import engine, SessionLocal, Base
@@ -78,16 +79,24 @@ def init():
 #    finally:
 #        db.close()
 
-description = f"""
-{lang_str('main_description', DEFAULT_LANG)}
+#description = f"""
+#{app.locale.lang_str('main_description', DEFAULT_LANG)}
+#
+#_Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](https://github.com/LucasPlacentino/cas-sso-discord-bot)_
+#"""
 
-_Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](https://github.com/LucasPlacentino/cas-sso-discord-bot)_
-"""
+#LOCALE: Locale = Locale(debug=DEBUG)
+
+class App(FastAPI):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.locale: Locale = None # extends FastAPI with locale
 
 # FastAPI App
-app = FastAPI(
+#app = FastAPI(
+app = App(
     title=getenv("APP_NAME"),
-    description=str(getenv("APP_DESCRIPTION", lang_str('main_description', DEFAULT_LANG))),
+    description=getenv("APP_DESCRIPTION"),
     version=VERSION,
     openapi_url=None,
     docs_url=None,
@@ -151,7 +160,7 @@ def is_debug() -> bool:
 
 # Provide Python functions inside Jinja templates :
 templates.env.globals.update(env_var=env_var) # or templates.env.filter["env_var"] ?
-templates.env.globals.update(lang_str=lang_str) # get string from language file
+#templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
 templates.env.globals.update(time=time) # get current time
 templates.env.globals.update(is_debug=is_debug) # check if in debug mode
 
@@ -210,6 +219,9 @@ def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
 async def on_startup():
     logger.info("Starting up...")
     await discord_auth.init()
+    app.locale = Locale(debug=DEBUG)
+    templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
+
 
 
 @app.get('/teapot')
@@ -223,7 +235,7 @@ async def hello():
 async def index_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in lang_list:
+    if pref_lang in app.locale.lang_list:
         if DEBUG:
             logger.debug(f"index_without_lang: in Accept-Language header: {lang_header} => pref_lang={pref_lang}")
         return RedirectResponse(url=f"/{pref_lang}/")
@@ -237,13 +249,13 @@ async def index(request: Request, lang: str):
     if user:
         return RedirectResponse(url=f"/{lang}/user")
     
-    return templates.TemplateResponse(name="index.jinja", context={"request": request,"hello": "world", "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('home_page_title', lang)})
+    return templates.TemplateResponse(name="index.jinja", context={"request": request,"hello": "world", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('home_page_title', lang)})
 
 @app.get('/profile')
 async def profile_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in lang_list:
+    if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 @app.get('/{lang}/profile')
@@ -253,7 +265,7 @@ async def profile(request: Request, lang: str):
 async def me_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in lang_list:
+    if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 @app.get('/{lang}/me')
@@ -265,20 +277,21 @@ async def me(request: Request, lang: str):
 async def user_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in lang_list:
+    if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 
 @app.get('/{lang}/user', response_class=HTMLResponse)
 async def user(request: Request, lang: str, debug: Optional[str] = None, discorddebug: Optional[bool] = None):
+    request.session['lang'] = lang
     if DEBUG:
-        logger.debug(request.session.get("user"))
+        logger.debug(f"session.user: {request.session.get('user')}")
         if debug == APP_SECRET_KEY:
             logger.debug("Debug mode, user page accessed with app key")
-            logger.debug(request.session)
+            logger.debug(f"session: {request.session}")
             if discorddebug:
-                return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "discord_id": "000", "discord_username": "@debug_discord_username", "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
-            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
+                return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "discord_id": "000", "discord_username": "@debug_discord_username", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
+            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
     user = request.session.get("user")
     if DEBUG:
         logger.debug(f"user: {user}")
@@ -286,14 +299,14 @@ async def user(request: Request, lang: str, debug: Optional[str] = None, discord
     if user:
         # %%%%%%%%%%%%% user is Discord authenticated %%%%%%%%%%%%%%%%%
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "cas_email": "test","discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
+            return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "cas_email": "test","discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
         # %%%%%%%%%%%%% user is not Discord authenticated %%%%%%%%%%%%%
         else:
             if DEBUG:
                 cas_user = str(user['user'])
                 logout_url = request.url_for('logout')
                 return HTMLResponse(f'Logged in as {cas_user}. <a href="{logout_url}">Logout</a>')
-            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": user, "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
+            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": user, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     # ---------------- user is not CAS authenticated ----------------
     elif request.session.get("discord_token"):
@@ -504,6 +517,11 @@ async def discord_logout(request: Request):#, token: str = Depends(discord_auth.
             return RedirectResponse(request.url_for('user'))
         else:
             return RedirectResponse(request.url_for('login'))
+    except KeyError:
+        if request.session['lang'] in app.locale.lang_list:
+            return RedirectResponse(url=f"/{request.session['lang']}/user")
+        else:
+            return RedirectResponse(url=f"/{DEFAULT_LANG}/user")
 
 # FIXME: #! doesn't seem to be working ?
 async def revoke_discord_token(token: str, token_type: str=None, user: str=None):
