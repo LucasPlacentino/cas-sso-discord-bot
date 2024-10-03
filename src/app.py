@@ -243,7 +243,7 @@ async def index_without_lang(request: Request):
 
 @app.get('/{lang}/', response_class=HTMLResponse)
 async def index(request: Request, lang: str):
-
+    request.session['lang'] = lang
     #check if user is already logged in in request.session, redirect to user if so
     user = request.session.get("user")
     if user:
