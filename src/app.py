@@ -41,27 +41,31 @@ VERSION = "2.0.0-alpha.2"
 
 
 # ------------
-DEBUG=False
-if getenv("DEBUG") is not None or getenv("DEBUG") != "":
-    #logging.basicConfig(level=logging.DEBUG)
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="{asctime} [{threadName}] [{levelname}]  {message}",
-        style="{",
-        datefmt="%Y-%m-%d %H:%M"
-    )
-    DEBUG=True
-    logger.info("Debug mode enabled")
-else:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
-        style="%",
-        datefmt="%Y-%m-%d %H:%M"
-    )
+DEBUG=True if getenv("DEBUG") is not None or getenv("DEBUG") != "" else False
 
-logger.info("Launching app... Name:"+str(getenv("APP_NAME")))
-logger.info("Version:"+str(VERSION))
+def init():
+    if DEBUG:
+        #logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="{asctime} [{pathname}:{lineno}-{levelname}]  {message}", # [{threadName}]
+            style="{",
+            datefmt="%Y-%m-%d %H:%M"
+        )
+        logger.info("Debug mode enabled")
+    else:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="{asctime} [{pathname}:{lineno}-{levelname}]  {message}", # [{threadName}]
+            style="{",
+            datefmt="%Y-%m-%d %H:%M"
+        )
+
+    logger.info("### Launching app...")
+    logger.info("###------------------------")
+    logger.info("### Name: "+str(getenv("APP_NAME")))
+    logger.info("### Version: "+str(VERSION))
+    logger.info("###------------------------")
 
 #from models import User, UsersDB #?
 #from database import engine, SessionLocal, Base
@@ -233,7 +237,7 @@ async def index(request: Request, lang: str):
     if user:
         return RedirectResponse(url=f"/{lang}/user")
     
-    return templates.TemplateResponse(name="index.jinja", context={"request": request,"hello": "world", "current_lang": lang, "lang_list": lang_list})
+    return templates.TemplateResponse(name="index.jinja", context={"request": request,"hello": "world", "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('home_page_title', lang)})
 
 @app.get('/profile')
 async def profile_without_lang(request: Request):
@@ -266,13 +270,15 @@ async def user_without_lang(request: Request):
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
 
 @app.get('/{lang}/user', response_class=HTMLResponse)
-async def user(request: Request, lang: str, debug: Optional[str] = None):
+async def user(request: Request, lang: str, debug: Optional[str] = None, discorddebug: Optional[bool] = None):
     if DEBUG:
         logger.debug(request.session.get("user"))
         if debug == APP_SECRET_KEY:
             logger.debug("Debug mode, user page accessed with app key")
             logger.debug(request.session)
-            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "current_lang": lang, "lang_list": lang_list})
+            if discorddebug:
+                return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "discord_id": "000", "discord_username": "@debug_discord_username", "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
+            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
     user = request.session.get("user")
     if DEBUG:
         logger.debug(f"user: {user}")
@@ -280,14 +286,14 @@ async def user(request: Request, lang: str, debug: Optional[str] = None):
     if user:
         # %%%%%%%%%%%%% user is Discord authenticated %%%%%%%%%%%%%%%%%
         if await discord_auth.isAuthenticated(request.session['access_token']):
-            return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": lang_list})
+            return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "cas_email": "test","discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
         # %%%%%%%%%%%%% user is not Discord authenticated %%%%%%%%%%%%%
         else:
             if DEBUG:
                 cas_user = str(user['user'])
                 logout_url = request.url_for('logout')
                 return HTMLResponse(f'Logged in as {cas_user}. <a href="{logout_url}">Logout</a>')
-            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": user, "current_lang": lang, "lang_list": lang_list})
+            return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": user, "current_lang": lang, "lang_list": lang_list, "page_title": lang_str('user_page_title', lang)})
         # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     # ---------------- user is not CAS authenticated ----------------
     elif request.session.get("discord_token"):
@@ -590,12 +596,19 @@ async def run_web():
 if __name__ == '__main__':
     import uvicorn
 
+    init()
+
     #TODO: start Discord bot
     
     #if not getenv("BOT_DISABLED"):
     #    asyncio.create_task(run_bot()) # ? run Discord bot async
 
 
-    uvicorn.run(app, port=int(getenv('FASTAPI_PORT', 8000)), host=str(getenv('FASTAPI_HOST', 'localhost')))
+    if DEBUG:
+        logger.debug("Running FastAPI webapp with reload")
+        uvicorn.run("app:app", port=int(getenv('FASTAPI_PORT', 8000)), host=str(getenv('FASTAPI_HOST', 'localhost')), reload=True)
+    else:
+        logger.info("Running FastAPI webapp")
+        uvicorn.run("app:app", port=int(getenv('FASTAPI_PORT', 8000)), host=str(getenv('FASTAPI_HOST', 'localhost')))
     #asyncio.create_task(run_web()) # ? run FastAPI webapp async
 

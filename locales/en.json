@@ -9,5 +9,9 @@
     "main_description": "TODO",
     "link_to_discord": "Link Discord account",
     "unlink_from_discord": "Unlink Discord account",
-    "hello": "Hello"
+    "hello": "Hello",
+    "discord_not_linked": "You have <b>not</b> linked your Discord account yet, press the button below :",
+    "user_page_title": "User",
+    "home_page_title": "Home",
+    "discord_linked": "Your Discord account is currently linked"
 }

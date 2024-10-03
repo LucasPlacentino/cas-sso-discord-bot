@@ -9,6 +9,12 @@
     "main_description": "Reliez votre compte Discord avec votre compte ULB afin d'accéder aux serveurs Discord réservés à la communauté étudiante",
     "link_to_discord": "Lier compte Discord",
     "unlink_from_discord": "Délier compte Discord",
+    "unlink_from_discord_notice": "<b>Si vous déliez votre compte Discord associé, celui-ci perdra sans-doute ses accès aux serveurs réservés où le bot est setup. Il vous est cependant tout a fait possible de le relier à nouveau juste après.</b>",
     "hello": "Bonjour",
-    "discord_not_linked": "Vous n'avez <b>pas</b> encore relié votre compte Discord, appuyez alors sur le bouton ci-dessous :"
+    "discord_not_linked": "Vous n'avez <b>pas</b> encore relié votre compte Discord, appuyez alors sur le bouton ci-dessous :",
+    "user_page_title": "Utilisateur",
+    "home_page_title": "Accueil",
+    "discord_linked": "Votre compte ULB et Discord sont bien reliés. Vous devriez avoir accès aux serveurs Discord réservés pour la communauté étudiante.",
+    "your_discord_name": "Votre nom d'utilisateur Discord",
+    "warning": "Attention"
 }

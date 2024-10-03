@@ -1,11 +1,13 @@
 {% extends 'base.jinja' %}
 
 {% block content %}
-{% if is_debug() %}<div class="username">user: {{ cas_username }}</div>{% endif %}
+{% if is_debug %}
+<div style="border: 2px solid red" class="username">user: {{ cas_username }} <a href="{{ url_for('logout') }}">Logout</a></div>
+{% endif %}
 
 <section class="flex-sect" id="iqw1p">
     <div class="container-width" id="ixcsj">
-        <div class="gjs-row" id="ibzh2s">
+        <div class="gjs-col" id="ibzh2s">
             <div class="gjs-row" id="iwp1uq">
                 <div class="gjs-cell" id="iwc1yl">
                     <div class="flex-title" id="isl2q">{{ lang_str("hello", current_lang) }}, <i style="color: {{ env_var('MAIN_COLOR', '#070a4b') }};" id="ibgfgw">{{ cas_username }}<!--Théodore
