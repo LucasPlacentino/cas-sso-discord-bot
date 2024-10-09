@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from .models import User
+from .models import User, Guild
 
 # TODO: use an ORM like SQLModel, SQLAlchemy, ormar or tortoise-orm, works with SQLite, PostgreSQL, and MySQL, and is async
 #import sqlmodel # SQLModel is a wrapper around SQLAlchemy for combined use with Pydantic models so easier with FastAPI
@@ -60,7 +60,7 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while adding the user {user}: {e}")
+            raise DatabaseError(f"An error occurred while adding the user {user}: {e}")
 
     async def get_user(discord_user_id: int | None = None, cas_username: str | None = None) -> User:
         try:
@@ -68,7 +68,7 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while getting the user {discord_user_id} {cas_username}: {e}")
+            raise DatabaseError(f"An error occurred while getting the user {discord_user_id} {cas_username}: {e}")
 
     async def delete_user(discord_user_id: int | None = None, cas_username: str | None = None):
         try:
@@ -76,7 +76,7 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while deleting the user {discord_user_id} {cas_username}: {e}")
+            raise DatabaseError(f"An error occurred while deleting the user {discord_user_id} {cas_username}: {e}")
 
     async def update_user(user: User):
         try:
@@ -84,7 +84,15 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while updating the user {user}: {e}")
+            raise DatabaseError(f"An error occurred while updating the user {user}: {e}")
+        
+    async def user_linked_discord(cas_username: str) -> bool:
+        try:
+            async with AsyncSession(engine) as session:
+                pass
+                #await session.commit()
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while checking if the user {cas_username} is linked to Discord: {e}")
     
     async def get_guild(discord_guild_id: int) -> Guild:
         try:
@@ -92,7 +100,7 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while getting the guild {discord_guild_id}: {e}")
+            raise DatabaseError(f"An error occurred while getting the guild {discord_guild_id}: {e}")
     
     async def add_guild(guild: Guild):
         try:
@@ -100,7 +108,7 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while adding the guild {guild}: {e}")
+            raise DatabaseError(f"An error occurred while adding the guild {guild}: {e}")
     
     async def delete_guild(discord_guild_id: int):
         try:
@@ -108,7 +116,7 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while deleting the guild {discord_guild_id}: {e}")
+            raise DatabaseError(f"An error occurred while deleting the guild {discord_guild_id}: {e}")
 
     async def get_all_guilds() -> list[Guild]:
         try:
@@ -116,7 +124,14 @@ class database():
                 pass
                 #await session.commit()
         except Exception as e:
-            raise self.DatabaseError(f"An error occurred while getting all guilds: {e}")
+            raise DatabaseError(f"An error occurred while getting all guilds: {e}")
 
-    class DatabaseError(Exception):
-        pass
+class DatabaseError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+        logging.error("DB: "+message)
+        super().__init__(message)
+    
+    def __str__(self):
+        return self.message
+

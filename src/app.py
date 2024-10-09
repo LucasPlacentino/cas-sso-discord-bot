@@ -25,6 +25,7 @@ import logging
 import platform
 from time import time
 from httpx import AsyncClient
+from contextlib import asynccontextmanager
 
 from bot import Bot # TODO: implement bot
 from locales import Locale, DEFAULT_LANG
@@ -32,7 +33,7 @@ from locales import Locale, DEFAULT_LANG
 # ------------
 
 
-VERSION = "2.0.0-alpha.2"
+VERSION = "2.0.0-alpha.3"
 
 
 # ------------
@@ -40,6 +41,8 @@ VERSION = "2.0.0-alpha.2"
 DEBUG=True if getenv("DEBUG") is not None or getenv("DEBUG") != "" else False
 
 logger = logging.getLogger("app")
+
+templates = Jinja2Templates(directory="templates")
 
 #locale: Locale = Locale(debug=DEBUG)
 
@@ -88,9 +91,21 @@ def init():
 #LOCALE: Locale = Locale(debug=DEBUG)
 
 class App(FastAPI):
+    #locale: Locale
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.locale: Locale = None # extends FastAPI with locale
+
+@asynccontextmanager
+async def lifespan(app: FastAPI): # replaces deprecated @app.on_event("startup") and @app.on_event("shutdown")
+    # --- startup ---
+    logger.info("FastAPI app startup")
+    #await discord_auth.init()
+    app.locale = Locale(debug=DEBUG)
+    templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
+    yield
+    # --- shutdown ---
+    logger.info("FastAPI app shutdown")
 
 # FastAPI App
 #app = FastAPI(
@@ -100,7 +115,8 @@ app = App(
     version=VERSION,
     openapi_url=None,
     docs_url=None,
-    redoc_url=None
+    redoc_url=None,
+    lifespan=lifespan
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -144,9 +160,6 @@ DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://githu
 #    owner=???,
 #    permissions=???
 #)
-
-
-templates = Jinja2Templates(directory="templates")
 
 def env_var(key: str, default: Optional[str] = None):
     value = getenv(key, default)
@@ -215,14 +228,12 @@ def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
     setattr(logging.getLoggerClass(), methodName, logForLevel)
     setattr(logging, methodName, logToRoot)
 
-@app.on_event("startup")
-async def on_startup():
-    logger.info("Starting up...")
-    await discord_auth.init()
-    app.locale = Locale(debug=DEBUG)
-    templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
-
-
+#@app.on_event("startup") #* DEPRECATED
+#async def on_startup():
+#    logger.info("Starting up...")
+#    await discord_auth.init()
+#    app.locale = Locale(debug=DEBUG)
+#    templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
 
 @app.get('/teapot')
 async def teapot():
@@ -298,7 +309,7 @@ async def user(request: Request, lang: str, debug: Optional[str] = None, discord
     # ---------------- user was CAS authenticated ----------------
     if user:
         # %%%%%%%%%%%%% user is Discord authenticated %%%%%%%%%%%%%%%%%
-        if await discord_auth.isAuthenticated(request.session['access_token']):
+        if await discord_auth.isAuthenticated(request.session['access_token']):#TODO: or db.user_linked_discord(cas_username=user):
             return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "cas_email": "test","discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
         # %%%%%%%%%%%%% user is not Discord authenticated %%%%%%%%%%%%%
         else:
