@@ -1,5 +1,9 @@
 # cas-sso-discord-bot
 
+from os import getenv
+from dotenv import load_dotenv
+load_dotenv()
+
 from typing import Optional, List
 
 from cas import CASClient # https://github.com/Chise1/fastapi-cas-example # python_cas ?
@@ -17,8 +21,6 @@ from fastapi_discord import Guild as DiscordGuild
 from fastapi_discord.exceptions import ClientSessionNotInitialized
 from fastapi_discord.models import GuildPreview
 import asyncio
-from os import getenv
-from dotenv import load_dotenv
 import logging
 import platform
 from time import time
@@ -26,8 +28,6 @@ from httpx import AsyncClient
 
 from bot import Bot # TODO: implement bot
 from locales import Locale, DEFAULT_LANG
-
-load_dotenv()
 
 # ------------
 

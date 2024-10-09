@@ -68,13 +68,16 @@ class User(BaseModel):
     #class Config:
     #    orm_mode = True
 
+class Guild(BaseModel, DiscordGuild): # TODO: idk
+    pass
+
 #class UsersDB(Base, User, DiscordUser): #! use multiple inheritance ?
 #class UserDB(SQLModel, table=True): #! ? SQLModel
 class UsersDB(Base):
 
     __tablename__ = "Users"
 
-    discord_id = Column(Integer, primary_key=True, unique=True, index=True) # String ? https://github.com/discord/discord-api-docs/blob/main/docs/resources/User.md
+    discord_id = Column(Integer, primary_key=True, unique=True, index=True) # String ? https://github.com/discord/discord-api-docs/blob/main/docs/resources/User.md #! TODO: shouldnt use discord_id as primary key in case Discord changes them (low chance tho)
     cas_username = Column(String, unique=True, index=True)
     cas_email = Column(String, unique=True, index=True)
     discord_username = Column(String(32), unique=True, index=True)
