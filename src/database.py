@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+# TODO: use an ORM like ormar or tortoise-orm, works with SQLite, PostgreSQL, and MySQL, and is async
+import ormar
+
 from .gsheets_connector import GSheetsConnector # TODO:
 
 DATABASE_URL = os.getenv("DATABASE_URL")
