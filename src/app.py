@@ -65,9 +65,11 @@ def init():
         )
 
     logger.info("### Launching app...")
+    logger.info("### CAS-SSO-Discord-Bot")
+    logger.info("### Version: "+str(VERSION))
     logger.info("###------------------------")
     logger.info("### Name: "+str(getenv("APP_NAME")))
-    logger.info("### Version: "+str(VERSION))
+    logger.info("### Description: "+str(getenv("APP_DESCRIPTION")))
     logger.info("###------------------------")
     # ------ init() end ------
 
@@ -118,7 +120,7 @@ app = App(
     redoc_url=None,
     lifespan=lifespan
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
 # CAS Client
 cas_client = CASClient(
