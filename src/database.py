@@ -6,16 +6,17 @@ from collections.abc import AsyncGenerator # The AsyncGenerator type hint is a s
 
 #! OR USE SQLMODEL : https://sqlmodel.tiangolo.com/
 #from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.ext.asyncio.session import AsyncSession
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+#from sqlalchemy.ext.asyncio import create_async_engine
+#from sqlalchemy.ext.asyncio.session import AsyncSession
+#from sqlalchemy.ext.declarative import declarative_base
+#from sqlalchemy.orm import sessionmaker
 
 from .models import User, Guild
 
 # TODO: use an ORM like SQLModel, SQLAlchemy, ormar or tortoise-orm, works with SQLite, PostgreSQL, and MySQL, and is async
 #import sqlmodel # SQLModel is a wrapper around SQLAlchemy for combined use with Pydantic models so easier with FastAPI
-#import ormar
+import ormar # based on SQLAlchemy Core so works with Alembic
+import sqlalchemy
 
 # TODO: use Alembic for migrations (for SQLAlchemy)
 #import alembic
@@ -36,7 +37,14 @@ db_type = getenv("DB_TYPE")
 #    autoflush=False,
 #    bind=engine
 #    )
-Base = declarative_base()
+#Base = declarative_base()
+
+base_ormar_config = ormar.ModelMeta(
+    database=DATABASE_URL,
+    metadata=Base.metadata,
+    engine=sqlalchemy.create_engine(DATABASE_URL),
+    #abstract=True
+)
 
 logger = logging.getLogger("db")
 if getenv("DEBUG"):
@@ -56,7 +64,7 @@ else:
         datefmt="%Y-%m-%d %H:%M"
     )
 
-class database():
+class Database():
 
     def __init__(self):
         self.__engine_connect_args = {}

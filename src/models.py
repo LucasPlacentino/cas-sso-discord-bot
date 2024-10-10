@@ -1,18 +1,91 @@
 # -*- coding: utf-8 -*-
 import logging
-import os
+from os import getenv
+from dotenv import load_dotenv
+load_dotenv()
 
-from sqlalchemy.schema import Column
-from sqlalchemy.types import String, Integer, Text
+DEBUG = True if getenv("DEBUG") is not None and getenv("DEBUG") != "" else False
+
 from .database import Base
 from fastapi_discord import Guild as DiscordGuild
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime
 
 from .app import get_database_session
-from sqlalchemy.orm import Session, relationship
+#from sqlalchemy.orm import Session, relationship
+#from sqlalchemy.schema import Column
+#from sqlalchemy.types import String, Integer, Text
+import ormar # based on SQLAlchemy Core so works with Alembic
+from database import Database as db
+from database import base_ormar_config
 from fastapi import Depends
 
+#TODO: use ormar ?
+
+logger = logging.getLogger("models")
+if DEBUG:
+    #logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="{asctime} [{threadName}] ({filename}:{lineno}) [{levelname}]  {message}", # [{threadName}]
+        style="{",
+        datefmt="%Y-%m-%d %H:%M"
+    )
+    logger.info("Debug mode enabled")
+else:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="{asctime} [{filename}:{lineno}-{levelname}]  {message}", # [{threadName}]
+        style="{",
+        datefmt="%Y-%m-%d %H:%M"
+    )
+
+#class MainMeta(ormar.ModelMeta):
+#    metadata = sqlalchemy.metadata
+#    database = db
+
+class Guild(ormar.Model): #! also inherit from DiscordGuild ?
+    #ormar.config = db.ormar_base_config
+    ormar.config = base_ormar_config.copy(tablename="guilds")
+
+    db_id: int = ormar.Integer(primary_key=True, autoincrement=True, index=True, unique=True)
+    discord_guild_id: int = ormar.Integer(index=True, unique=True, nullable=False)
+    guild_name: str = ormar.String(max_length=102) # max length of a guild name is 100 characters (excluding trailing and meading whitespaces)
+    added_at: datetime = ormar.DateTime(server_default=ormar.func.now())
+
+    async def save(self):
+        if DEBUG:
+            logger.debug(f"Saving guild {self.guild_name} to database")
+        await super().save()
+
+class User(ormar.Model): #! also inherit from DiscordUser ?
+    #ormar.config = db.ormar_base_config
+    ormar.config = base_ormar_config.copy(tablename="users")
+    #class Meta(MainMeta):
+    #    tablename = "users"
+
+    db_id: int = ormar.Integer(primary_key=True, autoincrement=True, index=True, unique=True)
+    cas_username: str = ormar.String(max_length=10, unique=True, index=True, nullable=False)
+    cas_email: str = ormar.String(max_length=255, unique=True, index=True)
+    discord_id: int = ormar.Integer(index=True, unique=True, nullable=False)
+    discord_username: str = ormar.String(max_length=33, index=True, nullable=True) # max length of a discord username is 32 characters, one extra just in case
+    discord_global_name: str = ormar.String(max_length=33, nullable=True) # max length of a discord global name is 32 characters, one extra in case of @ char returned by api
+    added_at: datetime = ormar.DateTime(server_default=ormar.func.now())
+
+    # Relationship with Guild (many-to-many) :
+    #guilds: Optional[List[DiscordGuild]] = ormar.ManyToMany(DiscordGuild, through="UserGuild")
+    guilds: List[Guild] = ormar.ManyToMany(Guild, skip_reverse=True) # can be empty on User creation, skip_reverse=True because guilds do not need to know about users
+
+    async def save(self):
+        if DEBUG:
+            logger.debug(f"Saving user {self.cas_username} to database")
+        await super().save()
+
+
+
+
+# ------------------------------
 
 class User(BaseModel):
     cas_username: str
@@ -65,11 +138,16 @@ class User(BaseModel):
     def __str__(self):
         return f"User: {self.cas_username}, Discord ID: {self.discord_id}"
     
-    #class Config:
-    #    orm_mode = True
+    class Config:
+        orm_mode = True
 
-class Guild(BaseModel, DiscordGuild): # TODO: idk
-    pass
+"""
+
+class Guild(BaseModel, DiscordGuild):
+    #TODO: idk
+
+    class Config:
+        orm_mode = True
 
 #class UsersDB(Base, User, DiscordUser): #! use multiple inheritance ?
 #class UserDB(SQLModel, table=True): #! ? SQLModel
@@ -99,3 +177,5 @@ class GuildsDB(Base):
 
     class Config:
         orm_mode = True
+
+"""
