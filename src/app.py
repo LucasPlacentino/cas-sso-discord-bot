@@ -7,7 +7,7 @@ load_dotenv()
 from typing import Optional, List
 
 from cas import CASClient # https://github.com/Chise1/fastapi-cas-example # python_cas ?
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, Request, status
 import uvicorn
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -34,7 +34,7 @@ from locales import Locale, DEFAULT_LANG
 # ------------
 
 
-VERSION = "2.0.0-alpha.3"
+VERSION = "2.0.0-alpha4"
 
 
 # ------------
@@ -240,7 +240,7 @@ def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
 
 @app.get('/teapot')
 async def teapot():
-    return HTMLResponse("<h1>This is a teapot 🫖</h1>", status_code=418)
+    return HTMLResponse("<h1>This is a teapot 🫖</h1>", status_code=status.HTTP_418_IM_A_TEAPOT)
 @app.get('/hello')
 async def hello():
     return HTMLResponse("<h1>Hello, world!</h1>")
@@ -253,7 +253,7 @@ async def index_without_lang(request: Request):
         if DEBUG:
             logger.debug(f"index_without_lang: in Accept-Language header: {lang_header} => pref_lang={pref_lang}")
         return RedirectResponse(url=f"/{pref_lang}/")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=308)
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/', response_class=HTMLResponse)
 async def index(request: Request, lang: str):
@@ -271,7 +271,7 @@ async def profile_without_lang(request: Request):
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
     if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/profile')
 async def profile(request: Request, lang: str):
     return RedirectResponse(url=f"/{lang}/user")
@@ -281,7 +281,7 @@ async def me_without_lang(request: Request):
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
     if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/me')
 async def me(request: Request, lang: str):
     return RedirectResponse(url=f"/{lang}/user")
@@ -293,7 +293,7 @@ async def user_without_lang(request: Request):
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
     if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=308)
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/user', response_class=HTMLResponse)
 async def user(request: Request, lang: str, debug: Optional[str] = None, discorddebug: Optional[bool] = None):
@@ -328,9 +328,9 @@ async def user(request: Request, lang: str, debug: Optional[str] = None, discord
             logger.debug("user: discord_token exists but user is not CAS authenticated")
     if DEBUG:
         login_url = request.url_for('login')
-        return HTMLResponse(f'Login required. <a href="{login_url}">Login</a>', status_code=403)
-    #return RedirectResponse(request.url_for('login'), status_code=403)
-    return RedirectResponse(request.url_for('index'), status_code=403)
+        return HTMLResponse(f'Login required. <a href="{login_url}">Login</a>', status_code=status.HTTP_401_UNAUTHORIZED)
+    #return RedirectResponse(request.url_for('login'), status_code=status.HTTP_401_UNAUTHORIZED)
+    return RedirectResponse(request.url_for('index'), status_code=status.HTTP_401_UNAUTHORIZED)
     # ---------------------------------------------------------------
 
 
@@ -406,21 +406,26 @@ def logout_callback(request: Request):
 
 @app.get('/discord-login')
 async def discord_login(request: Request):
-    # check if already logged in with discord, redirect to user if so
-    if request.session.get("discord_token"):
-        return RedirectResponse(request.url_for('user'))
+    user = request.session.get("user")
+    if DEBUG or user:
+        # check if already logged in with discord, redirect to user if so
+        if request.session.get("discord_token"):
+            return RedirectResponse(request.url_for('user'))
 
-    #TODO:
-    #user_session_state = generate_random(seed=request.session.items())
-    #session_state = randomASCII(len=12)
-    #session_state = hashlib.sha256(os.urandom(1024)).hexdigest()
+        #TODO:
+        #user_session_state = generate_random(seed=request.session.items())
+        #session_state = randomASCII(len=12)
+        #session_state = hashlib.sha256(os.urandom(1024)).hexdigest()
 
-    #logging.debug("discord_login: "+discord_auth.get_oauth_login_url(state="my_test_state"))
-    return RedirectResponse(discord_auth.get_oauth_login_url(
-        state="my_test_state" #TODO: generate state token ? based on user's session/request (like: used as seed)? see above commented
-    )) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
-    #return await discord_auth.login(request) # ?
-    #return await RedirectResponse(discord_auth.oauth_login_url) # or discord_auth.get_oauth_login_url(state="my state")
+        #logging.debug("discord_login: "+discord_auth.get_oauth_login_url(state="my_test_state"))
+        return RedirectResponse(discord_auth.get_oauth_login_url(
+            state="my_test_state" #TODO: generate state token ? based on user's session/request (like: used as seed)? see above commented
+        )) # TODO: state https://discord.com/developers/docs/topics/oauth2#state-and-security
+        #return await discord_auth.login(request) # ?
+        #return await RedirectResponse(discord_auth.oauth_login_url) # or discord_auth.get_oauth_login_url(state="my state")
+    else:
+        # user is not logged in with CAS
+        return RedirectResponse(request.url_for('login'), status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 async def get_user(token: str = Depends(discord_auth.get_token)):
@@ -479,15 +484,15 @@ async def discord_callback(request: Request, code: str, state: str):
         ##except ClientSessionNotInitialized:
         ##    return JSONResponse({"error": "ClientSessionNotInitialized"}, status_code=500)
     else:
-        return RedirectResponse(request.url_for('login'))
+        return RedirectResponse(request.url_for('login'), status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 #! needed ?
 @app.get(
-    "/authenticated",
+    "/discord-authenticated",
     response_model=bool,
 )
-async def isAuthenticated(request: Request):
+async def isDiscordAuthenticated(request: Request):
     try:
         auth = await discord_auth.isAuthenticated(token=request.session['discord_token'])
         return auth
@@ -521,16 +526,15 @@ async def discord_logout(request: Request):#, token: str = Depends(discord_auth.
             request.session.pop("discord_global_name", None)
             request.session.pop("discord_id", None)
             request.session.pop("discord_guilds", None)
-
-            return RedirectResponse(request.url_for('user'))
-        else:
-            return RedirectResponse(request.url_for('user'))
+        
+        return RedirectResponse(request.url_for('user'))
+    
     except Unauthorized:
         cas_user = request.session.get("user")
         if cas_user:
             return RedirectResponse(request.url_for('user'))
         else:
-            return RedirectResponse(request.url_for('login'))
+            return RedirectResponse(request.url_for('login'), status_code=status.HTTP_401_UNAUTHORIZED)
     except KeyError:
         if request.session['lang'] in app.locale.lang_list:
             return RedirectResponse(url=f"/{request.session['lang']}/user")
