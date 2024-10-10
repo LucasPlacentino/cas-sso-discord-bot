@@ -8,6 +8,7 @@ from typing import Optional, List
 
 from cas import CASClient # https://github.com/Chise1/fastapi-cas-example # python_cas ?
 from fastapi import FastAPI, Depends, Request
+import uvicorn
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -42,7 +43,7 @@ DEBUG=True if getenv("DEBUG") is not None or getenv("DEBUG") != "" else False
 
 logger = logging.getLogger("app")
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="src/templates")
 
 #locale: Locale = Locale(debug=DEBUG)
 
@@ -613,33 +614,24 @@ async def run_bot():
     else:
         logging.warning("Non-Linux system. INFO and DEBUG log files won't be available.")
 
-    bot = Bot(logger=botRootLogger, logFormatter=botLogFormatter)
+    #bot = Bot(logger=botRootLogger, logFormatter=botLogFormatter)
     #await bot.run(getenv("DISCORD_BOT_TOKEN")) # TODO: implement bot
 
-# ? needed ?
-async def run_web():
-    try:
-        logger.info("Run webapp")
-        #await uvicorn.run(app, port=getenv('FASTAPI_PORT', 8000), host=getenv('FASTAPI_HOST', 'localhost')) # ?
-    except:
-        logger.error("Webapp fail")
+async def run_tasks():
     
-if __name__ == '__main__':
-    import uvicorn
+    host = str(getenv('FASTAPI_HOST', 'localhost'))
+    port = int(getenv('FASTAPI_PORT', 8000))
+    reload = True if getenv('DEV_ENV', False) is not None and getenv('DEV_ENV', False) != "" else False
+    logger.debug(f"Running FastAPI webapp{ "%%%%% WITH RELOAD %%%%%" if reload else "" }")
+    logger.debug(f"with port={port}, host={host}")
 
-    init()
+    web_task = asyncio.create_task(uvicorn.run("app:app", port=port, host=host, reload=reload))
 
     #TODO: start Discord bot
-    
-    #if not getenv("BOT_DISABLED"):
-    #    asyncio.create_task(run_bot()) # ? run Discord bot async
+    bot_task = asyncio.create_task(run_bot())
 
+    await asyncio.gather(web_task, bot_task)
 
-    if DEBUG:
-        logger.debug("Running FastAPI webapp with reload")
-        uvicorn.run("app:app", port=int(getenv('FASTAPI_PORT', 8000)), host=str(getenv('FASTAPI_HOST', 'localhost')), reload=True)
-    else:
-        logger.info("Running FastAPI webapp")
-        uvicorn.run("app:app", port=int(getenv('FASTAPI_PORT', 8000)), host=str(getenv('FASTAPI_HOST', 'localhost')))
-    #asyncio.create_task(run_web()) # ? run FastAPI webapp async
-
+if __name__ == '__main__':
+    init()
+    asyncio.run(run_tasks()) # run FastAPI webapp and Disnake bot as async tasks

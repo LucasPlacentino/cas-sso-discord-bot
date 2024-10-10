@@ -4,7 +4,7 @@
 {% if is_debug %}
 <div style="border: 2px solid red">
     <div class="username">user: {{ cas_username }} <a href="{{ url_for('logout') }}">Logout</a></div>
-    <div class="discord-username">Discord username: {{ discord_username }}<a href="{{ url_for('discord_logout') }}">Discord Logout</a></div>
+    <div class="discord-username">Discord username: {{ discord_username }} <a href="{{ url_for('discord_logout') }}">Discord Logout</a></div>
 </div>
 {% endif %}
 
