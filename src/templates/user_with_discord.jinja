@@ -36,10 +36,17 @@
             <div class="gjs-row" id="iddg46">
                 <div class="gjs-cell" id="ieybnm">
                     <h3 id="ivs5rm">{{ lang_str('your_discord_name', current_lang)|safe }}: <b><i
-                                id="i7esag">{{ discord_username }} (<i>user_id: {{ discord_id }}</i>)<!-- user.discord_username -->
+                                id="i7esag"><div class="tooltip-top tooltip-mobile" data-tooltip="user_id: {{ discord_id }}">{{ discord_username }}</div><!-- user.discord_username -->
                             </i></b></h3>
                 </div>
             </div>
+            <div class="gjs-row" id="i8ano">
+            <div class="gjs-cell" id="iwk22">
+                <a href="{{ url_for('force_add_roles') }}" class="button-dark" style="pointer-events: none; opacity: 30%; text-decoration: line-through; height: 3rem; font-size: medium; background-color: {{ env_var('MAIN_COLOR', '#070a4b') }};">
+                    <span>{{ lang_str("force_add_role", current_lang)|safe }}</span>
+                </a>
+            </div>
+        </div>
             <div class="gjs-row" id="iwekp">
                 <div class="gjs-cell" id="ipcq2">
                     <a href="{{ url_for('discord_logout') }}" class="button-light" id="discord-unlink-button">

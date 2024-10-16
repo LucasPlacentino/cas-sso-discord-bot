@@ -19,10 +19,8 @@ COPY . /app
 #EXPOSE 8000
 
 # Define environment variable
+# Make the stdout and stderr streams unbuffered by setting the PYTHONUNBUFFERED environment variable to non-empty value different from 0 (recommended in containers):
 ENV PYTHONUNBUFFERED=1
-
-#DEBUG:
-RUN ls -la
 
 # Run app.py using python
 #CMD ["uvicorn", "src:app", "--host", "0.0.0.0", "--port", "8000"]

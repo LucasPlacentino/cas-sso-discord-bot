@@ -6,12 +6,16 @@
     "discord_name": "Discord username",
     "discord_description": "TODO",
     "main_title": "Discord ULB CAS Auth Bot",
-    "main_description": "TODO",
+    "main_description": "Link your Discord account with your ULB account to access the Discord servers that are reserved for ULB students.",
     "link_to_discord": "Link Discord account",
     "unlink_from_discord": "Unlink Discord account",
+    "unlink_from_discord_notice": "<b>If you unlink your Discord account, it will propably lose its access to servers where the bot is setup. However, you will be able to re-link it again right after.</b>",
     "hello": "Hello",
     "discord_not_linked": "You have <b>not</b> linked your Discord account yet, press the button below :",
     "user_page_title": "User",
     "home_page_title": "Home",
-    "discord_linked": "Your Discord account is currently linked"
+    "discord_linked": "Your Discord account is currently linked, you should have access to the Discord servers that are protected by this bot.",
+    "your_discord_name": "Your Discord username",
+    "warning": "Warning",
+    "force_add_role": "Force add role(s)"
 }

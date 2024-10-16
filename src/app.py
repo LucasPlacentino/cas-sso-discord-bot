@@ -7,7 +7,7 @@ load_dotenv()
 from typing import Optional, List
 
 from cas import CASClient # https://github.com/Chise1/fastapi-cas-example # python_cas ?
-from fastapi import FastAPI, Depends, Request, status
+from fastapi import FastAPI, Depends, Request, status, Path
 import uvicorn
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -24,6 +24,7 @@ from fastapi_discord.models import GuildPreview
 import asyncio
 import logging
 import platform
+from typing import Annotated #TODO: use Annotated
 from time import time
 from httpx import AsyncClient
 from contextlib import asynccontextmanager
@@ -256,7 +257,9 @@ async def index_without_lang(request: Request):
     return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/', response_class=HTMLResponse)
-async def index(request: Request, lang: str):
+async def index(request: Request, lang: str):# lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
+    if lang in ["favicon.ico"]:
+        return
     request.session['lang'] = lang
     #check if user is already logged in in request.session, redirect to user if so
     user = request.session.get("user")
@@ -273,7 +276,7 @@ async def profile_without_lang(request: Request):
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/profile')
-async def profile(request: Request, lang: str):
+async def profile(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return RedirectResponse(url=f"/{lang}/user")
 @app.get('/me')
 async def me_without_lang(request: Request):
@@ -283,7 +286,7 @@ async def me_without_lang(request: Request):
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/me')
-async def me(request: Request, lang: str):
+async def me(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return RedirectResponse(url=f"/{lang}/user")
 
 
@@ -296,7 +299,7 @@ async def user_without_lang(request: Request):
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/user', response_class=HTMLResponse)
-async def user(request: Request, lang: str, debug: Optional[str] = None, discorddebug: Optional[bool] = None):
+async def user(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])], debug: Optional[str] = None, discorddebug: Optional[bool] = None): # lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
     request.session['lang'] = lang
     if DEBUG:
         logger.debug(f"session.user: {request.session.get('user')}")
@@ -564,6 +567,10 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
     else:
         logger.error(f"revoke_discord_token: Unexpected HTTP response {response.status_code}")
     return False
+
+@app.get('/force-add-roles')
+async def force_add_roles(request: Request):
+    return
 
 
 @app.exception_handler(Unauthorized)
