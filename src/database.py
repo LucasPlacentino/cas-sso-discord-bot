@@ -4,7 +4,7 @@ from os import getenv
 
 from collections.abc import AsyncGenerator # The AsyncGenerator type hint is a special type hint that is used for asynchronous generators (type hint for the get_db function)
 
-#! OR USE SQLMODEL : https://sqlmodel.tiangolo.com/
+#* OR USE SQLMODEL : https://sqlmodel.tiangolo.com/
 #from sqlalchemy import create_engine
 #from sqlalchemy.ext.asyncio import create_async_engine
 #from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -16,7 +16,9 @@ from .models import User, Guild
 # TODO: use an ORM like SQLModel, SQLAlchemy, ormar or tortoise-orm, works with SQLite, PostgreSQL, and MySQL, and is async
 #import sqlmodel # SQLModel is a wrapper around SQLAlchemy for combined use with Pydantic models so easier with FastAPI
 import ormar # based on SQLAlchemy Core so works with Alembic
+#from ormar import Extra
 import sqlalchemy
+import databases
 
 # TODO: use Alembic for migrations (for SQLAlchemy)
 #import alembic
@@ -24,6 +26,8 @@ import sqlalchemy
 
 DATABASE_URL = getenv("DATABASE_URL")
 db_type = getenv("DB_TYPE")
+__database = databases.Database(DATABASE_URL)
+__metadata = sqlalchemy.MetaData()
 
 # TODO: use UUIDs (v4) for primary keys ? (or Discord IDs ?) or the default incrementing integers ?
 
@@ -39,11 +43,12 @@ db_type = getenv("DB_TYPE")
 #    )
 #Base = declarative_base()
 
-base_ormar_config = ormar.ModelMeta(
-    database=DATABASE_URL,
-    metadata=Base.metadata,
+base_ormar_config = ormar.ModelMeta( # ormar.OrmarConfig() #?
+    database=__database, # or __database or DATABASE_URL
+    metadata=__metadata, # =Base.metadata, # =sqlalchemy.MetaData()
     engine=sqlalchemy.create_engine(DATABASE_URL),
-    #abstract=True
+    #abstract=True,
+    #extra=Extra.ignore  # set extra setting to prevent exceptions on extra fields presence
 )
 
 logger = logging.getLogger("db")
@@ -63,6 +68,78 @@ else:
         style="{",
         datefmt="%Y-%m-%d %H:%M"
     )
+
+class DB():
+    async def add_user(user: User):
+        try:
+            logger.debug(f"Adding user {user} to the database")
+            await user.save()
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while adding the user {user}: {e}")
+        
+    async def delete_user(discord_user_id: int | None = None, cas_username: str | None = None):
+        try:
+            logger.debug(f"Deleting user {discord_user_id} {cas_username} from the database")
+            if discord_user_id:
+                await User.objects.delete(discord_id=discord_user_id)
+            elif cas_username:
+                await User.objects.delete(cas_username=cas_username)
+            else:
+                raise ValueError("Either discord_user_id or cas_username must be provided")
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while deleting the user {discord_user_id} {cas_username}: {e}")
+
+    async def user_linked_discord(cas_username: str) -> bool:
+        try:
+            logger.debug(f"Checking if the user {cas_username} is linked to Discord (checking if user exists in the database)")
+            # A user exists in the database IF AND ONLY IF they have linked their Discord account to their CAS account (reduces size of database and eases user deletion)
+            return await User.objects.filter(cas_username=cas_username).exists()
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while checking if the user {cas_username} is linked to Discord: {e}")
+    
+    async def get_guild(discord_guild_id: int) -> Guild:
+        try:
+            logger.debug(f"Getting the guild {discord_guild_id} from the database")
+            guild = await Guild.objects.get(discord_guild_id=discord_guild_id)
+            return guild
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while getting the guild {discord_guild_id}: {e}")
+        
+    async def add_guild(guild: Guild):
+        try:
+            logger.debug(f"Adding guild {guild} to the database")
+            await guild.save()
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while adding the guild {guild}: {e}")
+    
+    async def delete_guild(discord_guild_id: int):
+        try:
+            logger.debug(f"Deleting guild {discord_guild_id} from the database")
+            await Guild.objects.delete(discord_guild_id=discord_guild_id) # delete using a query
+            #? or
+            #await Guild.objects.get(discord_guild_id=discord_guild_id).delete() # delete using a Model instance
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while deleting the guild {discord_guild_id}: {e}")
+        
+    async def get_all_user_guilds(cas_username: str | None = None, discord_user_id: int | None = None) -> list[Guild]:
+        try:
+            logger.debug(f"Getting all guilds for the user {cas_username} {discord_user_id} from the database")
+            if cas_username:
+            #user = await User.objects.get(discord_id=discord_user_id)
+            #user_guilds = user.guilds
+                return await User.objects.select_related(User.guilds).get(cas_username=cas_username)
+            elif discord_user_id:
+                return await User.objects.select_related(User.guilds).get(discord_id=discord_user_id)
+            else:
+                raise ValueError("Either cas_username or discord_user_id must be provided")
+        except Exception as e:
+            raise DatabaseError(f"An error occurred while getting all guilds for the user {cas_username}: {e}")
+
+
+
+
+
+#? ---- not using this : ?
 
 class Database():
 
@@ -120,7 +197,7 @@ class Database():
         async with self.async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     
-    async def add_user(user: User):
+    async def __add_user(user: User):
         try:
             async with AsyncSession(self.async_engine) as session:
                 pass
@@ -128,7 +205,7 @@ class Database():
         except Exception as e:
             raise DatabaseError(f"An error occurred while adding the user {user}: {e}")
 
-    async def get_user(discord_user_id: int | None = None, cas_username: str | None = None) -> User:
+    async def __get_user(discord_user_id: int | None = None, cas_username: str | None = None) -> User:
         try:
             async with AsyncSession(self.async_engine) as session:
                 pass
@@ -136,7 +213,7 @@ class Database():
         except Exception as e:
             raise DatabaseError(f"An error occurred while getting the user {discord_user_id} {cas_username}: {e}")
 
-    async def delete_user(discord_user_id: int | None = None, cas_username: str | None = None):
+    async def __delete_user(discord_user_id: int | None = None, cas_username: str | None = None):
         try:
             async with AsyncSession(self.async_engine) as session:
                 pass
@@ -144,7 +221,7 @@ class Database():
         except Exception as e:
             raise DatabaseError(f"An error occurred while deleting the user {discord_user_id} {cas_username}: {e}")
 
-    async def update_user(user: User):
+    async def __update_user(user: User):
         try:
             async with AsyncSession(self.async_engine) as session:
                 pass
@@ -201,3 +278,4 @@ class DatabaseError(Exception):
     def __str__(self):
         return self.message
 
+app_database = Database()

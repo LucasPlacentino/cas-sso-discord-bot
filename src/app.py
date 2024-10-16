@@ -79,25 +79,6 @@ def init():
     logger.info("###------------------------")
     # ------ init() end ------
 
-#from models import User, UsersDB #?
-#from database import engine, SessionLocal, Base
-# test
-#Base.metadata.create_all(bind=engine)
-#def get_database_session():
-#    try:
-#        db = SessionLocal()
-#        yield db
-#    finally:
-#        db.close()
-
-#description = f"""
-#{app.locale.lang_str('main_description', DEFAULT_LANG)}
-#
-#_Uses CAS-SSO-Discord-Bot: [github.com/LucasPlacentino/cas-sso-discord-bot](https://github.com/LucasPlacentino/cas-sso-discord-bot)_
-#"""
-
-#LOCALE: Locale = Locale(debug=DEBUG)
-
 class App(FastAPI):
     #locale: Locale
     def __init__(self, *args, **kwargs):
@@ -270,7 +251,7 @@ async def user(request: Request, lang: Annotated[str, Path(title="2-letter langu
     # ---------------- user was CAS authenticated ----------------
     if user:
         # %%%%%%%%%%%%% user is Discord authenticated %%%%%%%%%%%%%%%%%
-        if await discord_auth.isAuthenticated(request.session['access_token']):#TODO: or db.user_linked_discord(cas_username=user):
+        if await discord_auth.isAuthenticated(request.session['access_token']):#TODO: or await db.user_linked_discord(cas_username=user):
             return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": user, "cas_email": "test","discord_id": request.session['discord_id'], "discord_username": request.session['discord_username'], "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
         # %%%%%%%%%%%%% user is not Discord authenticated %%%%%%%%%%%%%
         else:
