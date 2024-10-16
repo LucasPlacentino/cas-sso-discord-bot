@@ -1,10 +1,13 @@
 # cas-sso-discord-bot
 
+import os
 from os import getenv
 from dotenv import load_dotenv
 load_dotenv()
 
 from typing import Optional, List
+import sys
+import signal
 
 from cas import CASClient # https://github.com/Chise1/fastapi-cas-example # python_cas ?
 from fastapi import FastAPI, Depends, Request, status, Path
@@ -22,6 +25,7 @@ from fastapi_discord import Guild as DiscordGuild
 from fastapi_discord.exceptions import ClientSessionNotInitialized
 from fastapi_discord.models import GuildPreview
 import asyncio
+import anyio
 import logging
 import platform
 from typing import Annotated #TODO: use Annotated
@@ -35,7 +39,7 @@ from locales import Locale, DEFAULT_LANG
 # ------------
 
 
-VERSION = "2.0.0-alpha4"
+VERSION = "2.0.0-alpha6"
 
 
 # ------------
@@ -669,13 +673,62 @@ async def run_bot():
 
     #bot = Bot(logger=botRootLogger, logFormatter=botLogFormatter)
     #await bot.run(getenv("DISCORD_BOT_TOKEN")) # TODO: implement bot
+    
+    #BOT_TOKEN = getenv("DISCORD_BOT_TOKEN")
+    #if not BOT_TOKEN:
+    #    raise ValueError("No bot token provided. Set the DISNAKE_BOT_TOKEN environment variable.")
+    #await bot.start(BOT_TOKEN)
+
+
+
+async def run_webapp():
+    host = str(getenv('FASTAPI_HOST', 'localhost'))
+    port = int(getenv('FASTAPI_PORT', 8000))
+    reload = True if getenv('DEV_ENV', False) is not None and getenv('DEV_ENV', False) != "" else False
+    debug = True if getenv('DEBUG', False) is not None and getenv('DEBUG', False) != "" else False
+
+    logger.debug(f"Running FastAPI webapp{ "%%%%% WITH RELOAD %%%%%" if reload else "" }")
+    logger.debug(f"with port={port}, host={host}")
+
+    config = uvicorn.Config(app, host=host, port=port, log_level="debug" if debug else "info", reload=reload)
+    server = uvicorn.Server(config)
+
+    await server.serve()
 
 
 # ----------------------------------------------------------------------------
 
+async def shutdown_signal_listener(task_group):
+    """
+    Listens for shutdown signals and cancels the task group when received.
+    This function only adds signal handlers on Unix-like systems.
+    On Windows, it relies on KeyboardInterrupt.
+    """
+    if os.name != 'nt':
+        # Only Unix-like systems support signal handling with AnyIO
+        with anyio.open_signal_receiver(signal.SIGINT, signal.SIGTERM) as signal_aiter:
+            async for sig in signal_aiter:
+                print(f"Received signal: {sig}. Initiating shutdown.")
+                task_group.cancel_scope.cancel()
+    else:
+        # On Windows, rely on KeyboardInterrupt (Ctrl+C)
+        try:
+            await anyio.sleep_forever()
+        except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt received. Initiating shutdown.")
+            task_group.cancel_scope.cancel()
 
+async def main():
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(run_webapp)
+        #TODO: start Discord bot
+        #tg.start_soon(run_bot)
+
+        # Necessary for graceful shutdowns ? seems to double launch the webapp:
+        #tg.start_soon(shutdown_signal_listener, tg)
+
+"""
 async def run_tasks():
-    
     host = str(getenv('FASTAPI_HOST', 'localhost'))
     port = int(getenv('FASTAPI_PORT', 8000))
     reload = True if getenv('DEV_ENV', False) is not None and getenv('DEV_ENV', False) != "" else False
@@ -684,11 +737,22 @@ async def run_tasks():
 
     web_task = asyncio.create_task(uvicorn.run("app:app", port=port, host=host, reload=reload))
 
-    #TODO: start Discord bot
+    
     bot_task = asyncio.create_task(run_bot())
 
     await asyncio.gather(web_task, bot_task)
+"""
 
 if __name__ == '__main__':
     init()
-    asyncio.run(run_tasks()) # run FastAPI webapp and Disnake bot as async tasks
+
+    try:
+        anyio.run(main) # run FastAPI webapp and Disnake bot as Anyio async tasks
+        #asyncio.run(run_tasks()) # run FastAPI webapp and Disnake bot as async tasks
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt: Shutting down...")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        logger.info("Shutting down...")
+
+#EOF
