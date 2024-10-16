@@ -24,7 +24,8 @@
             <div class="footer-column footer-column-main">
                 This is a footer.
                 <ul>
-                    <li><a target="_blank" rel="noopener noreferrer" href="{{ env_var('HELP_LINK') }}">Help <i class="fa fa-question-circle" aria-hidden="true"></i></a></li>
+                    <li><a href="{{ url_for('help_without_lang') }}">{{ lang_str("help", current_lang)|safe }}</a></li>
+                    <li><a href="{{ url_for('about_without_lang') }}">{{ lang_str("about", current_lang)|safe }}</a></li>
                 </ul>
                 {{ env_var('APP_NOTICE', '')|safe }}
             </div>

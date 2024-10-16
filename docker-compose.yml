@@ -9,8 +9,8 @@ services:
     #  dockerfile: Dockerfile
     env_file:
       - .env
-    volumes:
-      - ./:/app
+    #volumes:
+    #  - ./:/app
     network_mode: host
     restart: unless-stopped # or unless-stopped or on-failure
 #    #! Comment this below if using Google Sheets as a database

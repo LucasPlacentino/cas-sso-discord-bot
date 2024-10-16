@@ -4,7 +4,7 @@
 {% if is_debug %}
 <div style="border: 2px solid red">
     <div class="username">user: {{ cas_username }} <a href="{{ url_for('logout') }}">Logout</a></div>
-    <div class="discord-username">Discord username: {{ discord_username }} <a href="{{ url_for('discord_logout') }}">Discord Logout</a></div>
+    <div class="discord-username">Discord username: {{ discord_username }} (id: {{ discord_id }}) <a href="{{ url_for('discord_logout') }}">Discord Logout</a></div>
 </div>
 {% endif %}
 
@@ -42,9 +42,11 @@
             </div>
             <div class="gjs-row" id="i8ano">
             <div class="gjs-cell" id="iwk22">
-                <a href="{{ url_for('force_add_roles') }}" class="button-dark" style="pointer-events: none; opacity: 30%; text-decoration: line-through; height: 3rem; font-size: medium; background-color: {{ env_var('MAIN_COLOR', '#070a4b') }};">
-                    <span>{{ lang_str("force_add_role", current_lang)|safe }}</span>
-                </a>
+                <form name="forceAddRolesButton" action="{{ url_for('force_add_roles') }}" method="post">
+                    <a onClick="document.forceAddRolesButton.submit()" class="button-dark" style="height: 3rem; font-size: medium; background-color: {{ env_var('MAIN_COLOR', '#070a4b') }};">
+                        <span>{{ lang_str("force_add_roles", current_lang)|safe }}</span>
+                    </a>
+                </form>
             </div>
         </div>
             <div class="gjs-row" id="iwekp">

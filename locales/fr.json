@@ -17,5 +17,11 @@
     "discord_linked": "Votre compte ULB et Discord sont bien reliés. Vous devriez avoir accès aux serveurs Discord réservés pour la communauté étudiante.",
     "your_discord_name": "Votre nom d'utilisateur Discord",
     "warning": "Attention",
-    "force_add_role": "Forcer ajout de rôle(s)"
+    "force_add_roles": "Forcer ajout de rôle(s)",
+    "help": "Aide",
+    "help_page_title": "Aide",
+    "help_page_content": "Vous trouverez ici des informations utiles pour vous aider à utiliser le bot.",
+    "about": "À propos",
+    "about_page_title": "À propos",
+    "about_page_content": "Ce bot est un projet développé par des étudiants de l'ULB. Il a pour but de fournir un moyen sécurisé de lier votre compte Discord avec votre compte ULB."
 }

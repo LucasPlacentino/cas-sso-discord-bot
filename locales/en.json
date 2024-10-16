@@ -17,5 +17,11 @@
     "discord_linked": "Your Discord account is currently linked, you should have access to the Discord servers that are protected by this bot.",
     "your_discord_name": "Your Discord username",
     "warning": "Warning",
-    "force_add_role": "Force add role(s)"
+    "force_add_roles": "Force add role(s)",
+    "help": "Help",
+    "help_page_title": "Help",
+    "help_page_content": "You will find here useful information to help you use the bot.",
+    "about": "About",
+    "about_page_title": "About",
+    "about_page_content": "This bot is a project developed by students of the ULB. It aims to provide a secure way to link your Discord account with your ULB account."
 }

@@ -257,7 +257,7 @@ async def index_without_lang(request: Request):
     return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/', response_class=HTMLResponse)
-async def index(request: Request, lang: str):# lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
+async def index(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):# lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
     if lang in ["favicon.ico"]:
         return
     request.session['lang'] = lang
@@ -304,9 +304,10 @@ async def user(request: Request, lang: Annotated[str, Path(title="2-letter langu
     if DEBUG:
         logger.debug(f"session.user: {request.session.get('user')}")
         if debug == APP_SECRET_KEY:
-            logger.debug("Debug mode, user page accessed with app key")
+            logger.debug("Debug mode, user page accessed with ?debug=`app_key`")
             logger.debug(f"session: {request.session}")
             if discorddebug:
+                logger.debug(f"Debug mode: user_with_discord page accessed with ?discorddebug=true")
                 return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "discord_id": "000", "discord_username": "@debug_discord_username", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
             return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
     user = request.session.get("user")
@@ -568,10 +569,48 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
         logger.error(f"revoke_discord_token: Unexpected HTTP response {response.status_code}")
     return False
 
-@app.get('/force-add-roles')
+#TODO: rate limit
+@app.post('/user/force-add-roles') # POST request
 async def force_add_roles(request: Request):
-    return
+    if DEBUG:
+        logger.debug("force_add_roles: force adding roles to user in all user's guilds")
+    user_cas_username = request.session.get("cas_username")
+    user_discord_id = request.session.get("discord_id")
+    # TODO: add roles to user in all guilds
+    # get all guilds the user is in with ormar
+    """
+    user_guilds = await User.objects.select_related('guilds').get(discord_id=user_discord_id) # or User.objects.select_related('guilds').get(cas_username=user_cas_username)
+    for guild in user_guilds:
+        await bot.add_roles(guild.discord_guild_id, user_discord_id)
+    """
+    if request.session['lang'] in app.locale.lang_list:
+        return RedirectResponse(url=f"/{request.session['lang']}/user", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_303_SEE_OTHER)
 
+@app.get('/help')
+async def help_without_lang(request: Request):
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+    if pref_lang in app.locale.lang_list:
+        return RedirectResponse(url=f"/{pref_lang}/help")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/help", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+
+@app.get('/{lang}/help', response_class=HTMLResponse)
+async def help(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    return templates.TemplateResponse(name="help.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('help_page_title', lang)})
+
+@app.get('/about')
+async def about_without_lang(request: Request):
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+    if pref_lang in app.locale.lang_list:
+        return RedirectResponse(url=f"/{pref_lang}/about")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/about", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+
+@app.get('/{lang}/about', response_class=HTMLResponse)
+async def about(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    return templates.TemplateResponse(name="about.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('about_page_title', lang)})
 
 @app.exception_handler(Unauthorized)
 async def unauthorized_error_handler(request: Request):
