@@ -23,5 +23,5 @@ COPY . /app
 ENV PYTHONUNBUFFERED=1
 
 # Run app.py using python
-#CMD ["uvicorn", "src:app", "--host", "0.0.0.0", "--port", "8000"]
+#CMD ["uvicorn", "src/app:app", "--host", "0.0.0.0", "--port", "8000"]
 CMD ["python", "src/app.py"]
