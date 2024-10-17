@@ -85,20 +85,37 @@ def init():
     logger.info("### Name: "+str(getenv("APP_NAME")))
     logger.info("### Description: "+str(getenv("APP_DESCRIPTION")))
     logger.info("###------------------------")
+
+    #logger.info("Initializing DiscordClient")
+    #discord_auth.init()
     # ------ init() end ------
+
+# Discord OAuth Client
+discord_auth = DiscordOAuthClient(
+    client_id=getenv('DISCORD_CLIENT_ID'),
+    client_secret=getenv('DISCORD_CLIENT_SECRET'),
+    #redirect_url=getenv('DISCORD_REDIRECT_URI'),
+    redirect_uri=str(getenv("SITE_URL", "http://localhost:8000"))+"url_for('discord_callback')",
+    scopes=("identify","guilds")#, "guilds", "email") # scopes default: just "identify"
+)
+logger.info(f"discord_auth scopes: {discord_auth.scopes.replace('%20', '_')}")
+DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
+#DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token" # no version in url ?
 
 class App(FastAPI):
     #locale: Locale
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.locale: Locale = None # extends FastAPI with locale
+        self.discord = discord_auth
 
 @asynccontextmanager
 async def lifespan(app: FastAPI): # replaces deprecated @app.on_event("startup") and @app.on_event("shutdown")
     # --- startup ---
     logger.info("FastAPI app startup")
     #TODO: create or init database here
-    #await discord_auth.init()
+    logger.info("Initializing DiscordClient")
+    await app.discord.init()
     app.locale = Locale(debug=DEBUG)
     templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
     yield
@@ -140,17 +157,6 @@ app.add_middleware(SessionMiddleware, # https://www.starlette.io/middleware/#ses
                     https_only=False, # indicate that Secure flag should be set (can be used with HTTPS only), default:False
                     )
 
-# Discord OAuth Client
-discord_auth = DiscordOAuthClient(
-    client_id=getenv('DISCORD_CLIENT_ID'),
-    client_secret=getenv('DISCORD_CLIENT_SECRET'),
-    #redirect_url=getenv('DISCORD_REDIRECT_URI'),
-    redirect_uri=str(getenv("SITE_URL", "http://localhost:8000"))+"/discord-callback",
-    scopes=("identify","guilds")#, "guilds", "email") # scopes default: just "identify"
-)
-logger.info(f"discord_auth scopes: {discord_auth.scopes.replace('%20', '_')}")
-DISCORD_TOKEN_URL = "https://discord.com/api/v10/oauth2/token" # ? https://github.com/Tert0/fastapi-discord/issues/96
-#DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token" # no version in url ?
 
 #admin_guild: DiscordGuild = DiscordGuild(
 #    id=getenv("ADMIN_GUILD_ID"),
