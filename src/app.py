@@ -33,6 +33,7 @@ from time import time
 from httpx import AsyncClient
 from contextlib import asynccontextmanager
 
+from utils import addLoggingLevel
 from bot import Bot # TODO: implement bot
 from locales import Locale, DEFAULT_LANG
 
@@ -53,11 +54,17 @@ templates = Jinja2Templates(directory="src/templates")
 #locale: Locale = Locale(debug=DEBUG)
 
 def init():
+    #logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+    #stream_handler = logging.StreamHandler(sys.stdout)
+    #log_formatter = logging.Formatter("{name}:[{levelname}] {asctime} [{processName}-{threadName}] ({filename}:{lineno}) {message}" if DEBUG else "{name}:[{levelname}] {asctime} ({filename}:{lineno}) {message}", style="{", datefmt="%Y-%m-%d %H:%M")
+    #stream_handler.setFormatter(log_formatter)
+    #logger.addHandler(stream_handler)
+
     if DEBUG:
         #logging.basicConfig(level=logging.DEBUG)
         logging.basicConfig(
             level=logging.DEBUG,
-            format="{asctime} [{threadName}] ({filename}:{lineno}) [{levelname}]  {message}", # [{threadName}]
+            format="{name}:[{levelname}] {asctime} [{processName}-{threadName}] ({filename}:{lineno}) {message}",
             style="{",
             datefmt="%Y-%m-%d %H:%M"
         )
@@ -65,10 +72,11 @@ def init():
     else:
         logging.basicConfig(
             level=logging.INFO,
-            format="{asctime} [{filename}:{lineno}-{levelname}]  {message}", # [{threadName}]
+            format="{name}:[{levelname}] {asctime} ({filename}:{lineno})  {message}", # [{processName}-{threadName}]
             style="{",
             datefmt="%Y-%m-%d %H:%M"
         )
+    logger.info("Logger set.")
 
     logger.info("### Launching app...")
     logger.info("### CAS-SSO-Discord-Bot")
@@ -89,6 +97,7 @@ class App(FastAPI):
 async def lifespan(app: FastAPI): # replaces deprecated @app.on_event("startup") and @app.on_event("shutdown")
     # --- startup ---
     logger.info("FastAPI app startup")
+    #TODO: create or init database here
     #await discord_auth.init()
     app.locale = Locale(debug=DEBUG)
     templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
@@ -367,19 +376,21 @@ async def discord_login(request: Request):
         return RedirectResponse(request.url_for('login'), status_code=status.HTTP_401_UNAUTHORIZED)
 
 
+#TODO: NOT USE THIS ?
 async def get_user(token: str = Depends(discord_auth.get_token)):
     if "identify" not in discord_auth.scopes:
         raise discord_auth.ScopeMissing("identify")
     route = "/users/@me"
     return DiscordUser(**(await discord_auth.request(route, token)))
     #return user
-
+#TODO: NOT USE THIS ?
 async def get_user_guilds(token: str = Depends(discord_auth.get_token)):
     if "guilds" not in discord_auth.scopes:
         raise discord_auth.ScopeMissing("guilds")
     route = "/users/@me/guilds"
     return [DiscordGuild(**guild) for guild in await discord_auth.request(route, token)]
     #return guilds
+
 
 @app.get('/discord-callback')
 async def discord_callback(request: Request, code: str, state: str):
@@ -391,7 +402,10 @@ async def discord_callback(request: Request, code: str, state: str):
         request.session['discord_refresh_token'] = refresh_token
         request.session['discord_token'] = token #await discord_auth.get_token(request=request) #! or just token from above ?
 
+        #TODO: get user info from discord
         user: DiscordUser = await get_user(token=token)
+        #user: DiscordUser = None
+
         if DEBUG:
             logger.debug(f"discord_callback: get_user: {user}")
         ##user: DiscordUser = await discord_auth.user(request=request)
@@ -400,6 +414,8 @@ async def discord_callback(request: Request, code: str, state: str):
         request.session["discord_id"] = user.id
 
         try:
+            logging.debug("discord_callback: getting user guilds")
+            #TODO: get user guilds from discord
             user_guilds: List[DiscordGuild] = await get_user_guilds(token=token)
             #if getenv("DEBUG"):
             #    logging.debug(f"discord_callback: user_guilds={user_guilds}")
@@ -410,7 +426,7 @@ async def discord_callback(request: Request, code: str, state: str):
         except:
             logger.error(f"ScopeMissing error in Discord API Client: missing \"guilds\" in scopes -> ignoring user guilds")
 
-        assert state == "my_test_state" # compares state for security # TODO: state
+        assert state == "my_test_state" # compares state for security # TODO: assert state
         
         return RedirectResponse(request.url_for('user'))
         ##try:
@@ -523,6 +539,8 @@ async def force_add_roles(request: Request):
     else:
         return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_303_SEE_OTHER)
 
+# ---- other pages ----
+
 @app.get('/help')
 async def help_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
@@ -530,7 +548,6 @@ async def help_without_lang(request: Request):
     if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/help")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/help", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-
 @app.get('/{lang}/help', response_class=HTMLResponse)
 async def help(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return templates.TemplateResponse(name="help.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('help_page_title', lang)})
@@ -542,90 +559,78 @@ async def about_without_lang(request: Request):
     if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/about")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/about", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-
 @app.get('/{lang}/about', response_class=HTMLResponse)
 async def about(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return templates.TemplateResponse(name="about.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('about_page_title', lang)})
 
+@app.get('/privacy-policy')
+async def privacy_policy_without_lang(request: Request):
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+    if pref_lang in app.locale.lang_list:
+        return RedirectResponse(url=f"/{pref_lang}/privacy-policy")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/privacy-policy", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+@app.get('/{lang}/privacy-policy', response_class=HTMLResponse)
+async def privacy_policy(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    return templates.TemplateResponse(name="privacypolicy.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('privacy_policy', lang)})
+
+@app.get('/terms-of-service')
+async def terms_of_service_without_lang(request: Request):
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+    if pref_lang in app.locale.lang_list:
+        return RedirectResponse(url=f"/{pref_lang}/terms-of-service")
+    return RedirectResponse(url=f"/{DEFAULT_LANG}/terms-of-service", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+@app.get('/{lang}/terms-of-service', response_class=HTMLResponse)
+async def terms_of_service(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    return templates.TemplateResponse(name="tos.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('terms_of_service', lang)})
+
+# ---- error pages ----
+
+@app.exception_handler(404)
+async def not_found_error_handler(request: Request, exc: Exception):
+    return HTMLResponse(templates.TemplateResponse(name="404.html", context={"request": request, "current_lang": DEFAULT_LANG}, status_code=404))
+    #return JSONResponse({"error": "Not Found"}, status_code=404)
+
+@app.exception_handler(500)
+async def internal_error_handler(request: Request, exc: Exception):
+    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request, "current_lang": DEFAULT_LANG}, status_code=500))
+
+@app.exception_handler(403)
+async def forbidden_error_handler(request: Request, exc: Exception):
+    return HTMLResponse(templates.TemplateResponse(name="403.html", context={"request": request, "current_lang": DEFAULT_LANG}, status_code=403))
+
 @app.exception_handler(Unauthorized)
 async def unauthorized_error_handler(request: Request):
     error = "Unauthorized"
-    return HTMLResponse(templates.TemplateResponse(name="401.html", context={"request": request,"error": error}), status_code=401)
-    #return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    return HTMLResponse(templates.TemplateResponse(name="401.html", context={"request": request,"error": error, "current°lang": DEFAULT_LANG}, status_code=401))
 
 
 @app.exception_handler(RateLimited)
 async def rate_limit_error_handler(request: Request, e: RateLimited):
-    return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after}), status_code=429)
-    #return JSONResponse({"error": "RateLimited", "retry": e.retry_after, "message": e.message}, status_code=429)
+    return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after, "current°lang": DEFAULT_LANG}, status_code=429))
 
 
 @app.exception_handler(ClientSessionNotInitialized)
 async def client_session_error_handler(request: Request, e: ClientSessionNotInitialized):
-    print(e)
-    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e}), status_code=500)
-    #return JSONResponse({"error": "Internal Error"}, status_code=500)
+    logger.error(e)
+    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e, "current_lang": DEFAULT_LANG}, status_code=500))
+
+#@app.exception_handler(Exception)
+#async def generic_error_handler(request: Request, e: Exception):
+#    logger.error(e)
+#    return HTMLResponse(templates.TemplateResponse(name="error.html", context={"request": request,"error": e, "current_lang": DEFAULT_LANG}, status_code=500))
 
 
 # ----------------------------------------------------------------------------
 
 
-def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
-    """
-    Comprehensively adds a new logging level to the `logging` module and the
-    currently configured logging class.
-
-    `levelName` becomes an attribute of the `logging` module with the value
-    `levelNum`. `methodName` becomes a convenience method for both `logging`
-    itself and the class returned by `logging.getLoggerClass()` (usually just
-    `logging.Logger`). If `methodName` is not specified, `levelName.lower()` is
-    used.
-
-    To avoid accidental clobberings of existing attributes, this method will
-    raise an `AttributeError` if the level name is already an attribute of the
-    `logging` module or if the method name is already present
-
-    Example
-    -------
-    >>> addLoggingLevel('TRACE', logging.DEBUG - 5)
-    >>> logging.getLogger(__name__).setLevel("TRACE")
-    >>> logging.getLogger(__name__).trace('that worked')
-    >>> logging.trace('so did this')
-    >>> logging.TRACE
-    5
-
-    """
-    if not methodName:
-        methodName = levelName.lower()
-
-    if hasattr(logging, levelName):
-        raise AttributeError("{} already defined in logging module".format(levelName))
-    if hasattr(logging, methodName):
-        raise AttributeError("{} already defined in logging module".format(methodName))
-    if hasattr(logging.getLoggerClass(), methodName):
-        raise AttributeError("{} already defined in logger class".format(methodName))
-
-    # This method was inspired by the answers to Stack Overflow post
-    # http://stackoverflow.com/q/2183233/2988730, especially
-    # http://stackoverflow.com/a/13638084/2988730
-    def logForLevel(self, message, *args, **kwargs):
-        if self.isEnabledFor(levelNum):
-            self._log(levelNum, message, args, **kwargs)
-
-    def logToRoot(message, *args, **kwargs):
-        logging.log(levelNum, message, *args, **kwargs)
-
-    logging.addLevelName(levelNum, levelName)
-    setattr(logging, levelName, levelNum)
-    setattr(logging.getLoggerClass(), methodName, logForLevel)
-    setattr(logging, methodName, logToRoot)
 
 async def run_bot():
 
     addLoggingLevel("TRACE", logging.INFO - 5)
-
-    botLogFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
-    botRootLogger = logging.getLogger()
+    botLogFormatter = logging.Formatter("{name}:[{levelname}] {asctime} [{processName}-{threadName}] ({filename}:{lineno}) {message}" if DEBUG else "{name}:[{levelname}] {asctime} ({filename}:{lineno}) {message}", style="{", datefmt="%Y-%m-%d %H:%M")
+    botRootLogger = logging.getLogger("bot")
     botRootLogger.setLevel(logging.DEBUG) # if DEBUG else logging.TRACE ?
 
     consoleHandler = logging.StreamHandler()
@@ -653,12 +658,12 @@ async def run_bot():
         logging.warning("Non-Linux system. INFO and DEBUG log files won't be available.")
 
     #bot = Bot(logger=botRootLogger, logFormatter=botLogFormatter)
-    #await bot.run(getenv("DISCORD_BOT_TOKEN")) # TODO: implement bot
-    
-    #BOT_TOKEN = getenv("DISCORD_BOT_TOKEN")
+
+    # TODO: implement bot
+    BOT_TOKEN = getenv("DISCORD_BOT_TOKEN")
     #if not BOT_TOKEN:
-    #    raise ValueError("No bot token provided. Set the DISNAKE_BOT_TOKEN environment variable.")
-    #await bot.start(BOT_TOKEN)
+    #    raise ValueError("No bot token provided. Set the DISCORD_BOT_TOKEN environment variable.")
+    #await bot.run(BOT_TOKEN)
 
 
 

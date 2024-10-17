@@ -45,7 +45,7 @@ else:
 #    metadata = sqlalchemy.metadata
 #    database = db
 
-class Guild(ormar.Model): #! also inherit from DiscordGuild ?
+class Guild(ormar.Model): #! also inherit from DiscordGuild (from Disnake) ?
     #ormar.config = db.ormar_base_config
     ormar.config = base_ormar_config.copy(tablename="guilds")
 
@@ -59,7 +59,7 @@ class Guild(ormar.Model): #! also inherit from DiscordGuild ?
             logger.debug(f"Saving guild {self.guild_name} to database")
         await super().save()
 
-class User(ormar.Model): #! also inherit from DiscordUser ?
+class User(ormar.Model): #! also inherit from DiscordUser (from Disnake) ?
     #ormar.config = db.ormar_base_config
     ormar.config = base_ormar_config.copy(tablename="users")
     #class Meta(MainMeta):

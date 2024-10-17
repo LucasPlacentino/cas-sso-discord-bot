@@ -109,7 +109,6 @@ button:hover {
 /* First column (75%) */
 .footer-column-main {
     flex: 3;
-    border: 1px solid red;
     padding: 0.2em;
     max-width: 100%;
 }
@@ -117,7 +116,6 @@ button:hover {
 /* Second column (25%) */
 .footer-column-secondary {
     flex: 2;
-    border: 1px solid green;
     padding: 0.2em;
     max-width: 100%;
 }

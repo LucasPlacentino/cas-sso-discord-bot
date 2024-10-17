@@ -5,7 +5,7 @@
     "email": "Email address",
     "discord_name": "Discord username",
     "discord_description": "TODO",
-    "main_title": "Discord ULB CAS Auth Bot",
+    "main_title": "ULB Verify Discord Bot",
     "main_description": "Link your Discord account with your ULB account to access the Discord servers that are reserved for ULB students.",
     "link_to_discord": "Link Discord account",
     "unlink_from_discord": "Unlink Discord account",
@@ -23,5 +23,11 @@
     "help_page_content": "You will find here useful information to help you use the bot.",
     "about": "About",
     "about_page_title": "About",
-    "about_page_content": "This bot is a project developed by students of the ULB. It aims to provide a secure way to link your Discord account with your ULB account."
+    "about_page_content": "This bot is a project developed by students of the ULB. It aims to provide a secure way to link your Discord account with your ULB account.",
+    "footer": "Made with ❤️ by <a href='https://github.com/LucasPlacentino'>Lucas Placentino</a> and <a href='https://github.com/OscarVsp'>Oscar Vsp</a> for the <a href='https://bepolytech.be'>BEP</a> and the <a href='https://ulb.be'>ULB</a> student community.",
+    "app_notice": "This service is neither officially related or endorsed by the Université libre de Bruxelles.",
+    "terms_of_service": "Terms of service",
+    "terms_of_service_content": "By using this service, you agree to the following terms of service :",
+    "privacy_policy": "Privacy policy",
+    "privacy_policy_content": "The only information that is stored by this service is the one that is necessary to link your Discord account with your ULB account. This includes: your Discord username, user ID, your ULBID, ULB email address and your full name. This information is stored securely and is not shared with any third party. When you unlink your Discord account, all the information that was stored is deleted."
 }

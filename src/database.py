@@ -52,22 +52,23 @@ base_ormar_config = ormar.ModelMeta( # ormar.OrmarConfig() #?
 )
 
 logger = logging.getLogger("db")
-if getenv("DEBUG"):
-    #logging.basicConfig(level=logging.DEBUG)
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="{asctime} [{threadName}] ({filename}:{lineno}) [{levelname}]  {message}", # [{threadName}]
-        style="{",
-        datefmt="%Y-%m-%d %H:%M"
-    )
-    logger.info("Debug mode enabled")
-else:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="{asctime} [{filename}:{lineno}-{levelname}]  {message}", # [{threadName}]
-        style="{",
-        datefmt="%Y-%m-%d %H:%M"
-    )
+
+#if getenv("DEBUG"):
+#    #logging.basicConfig(level=logging.DEBUG)
+#    logging.basicConfig(
+#        level=logging.DEBUG,
+#        format="{asctime} [{threadName}] ({filename}:{lineno}) [{levelname}]  {message}", # [{threadName}]
+#        style="{",
+#        datefmt="%Y-%m-%d %H:%M"
+#    )
+#    logger.info("Debug mode enabled")
+#else:
+#    logging.basicConfig(
+#        level=logging.INFO,
+#        format="{asctime} [{filename}:{lineno}-{levelname}]  {message}", # [{threadName}]
+#        style="{",
+#        datefmt="%Y-%m-%d %H:%M"
+#    )
 
 class DB():
     async def add_user(user: User):

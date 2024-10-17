@@ -14,6 +14,8 @@ from .app import app, DEBUG
 
 load_dotenv()
 
+logger = logging.getLogger("cas")
+
 # TODO: all this for custom CAS authentication implementation
 
 """

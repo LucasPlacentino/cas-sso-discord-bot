@@ -1,7 +1,7 @@
-{% extends 'base.html' %}
+{% extends 'base.jinja' %}
 
 {% block content %}
-<div class="error">404 Not found, <a href="{{ url_for('index') }}">go back home</a></div>
+<div class="error">404 Not found, <a href="/{{ current_lang }}/">go back home</a></div>
 
 <section class="flex-sect" id="iqw1p">
     <div class="container-width" id="ixcsj">
@@ -14,7 +14,7 @@
             <div class="gjs-title-row" id="i6uu1">
                 <div class="gjs-cell" id="it38h">
                     <div class="flex-title" id="if7j6">
-                        <span id="if8j7"><a id="if7j6b" href="{{ url_for('index') }}"><i class="fa fa-arrow-right" aria-hidden="true"></i> Go back Home</a></span>
+                        <span id="if8j7"><a id="if7j6b" href="/{{ current_lang }}/"><i class="fa fa-arrow-right" aria-hidden="true"></i> Go back Home</a></span>
                     </div>
                 </div>
             </div>

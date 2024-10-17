@@ -22,12 +22,14 @@
         <!-- footer -->
         <div class="footer-container">
             <div class="footer-column footer-column-main">
-                This is a footer.
-                <ul>
+                {{ lang_str('footer', current_lang)|safe }}
+                <ul style="margin-block-end: 12px; margin-block-start: 6px;">
                     <li><a href="{{ url_for('help_without_lang') }}">{{ lang_str("help", current_lang)|safe }}</a></li>
                     <li><a href="{{ url_for('about_without_lang') }}">{{ lang_str("about", current_lang)|safe }}</a></li>
+                    <li><a href="{{ url_for('privacy_policy_without_lang') }}">{{ lang_str("privacy_policy", current_lang)|safe }}</a></li>
+                    <li><a href="{{ url_for('terms_of_service_without_lang') }}">{{ lang_str("terms_of_service", current_lang)|safe }}</a></li>
                 </ul>
-                {{ env_var('APP_NOTICE', '')|safe }}
+                <i>Notice:</i><br>{{ lang_str('app_notice', current_lang)|safe if lang_str('app_notice', current_lang) else "This is an unofficial service."|safe }}
             </div>
             <div class="footer-column footer-column-secondary" style="position: relative;">
                 <div class="lang-selector" style="position: absolute; top: 0; right: 0;">

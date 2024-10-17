@@ -1,11 +1,11 @@
 {
-    "login": "Se connecter",
+    "login": "Connexion",
     "logout": "Déconnexion",
     "username": "Nom d'utilisateur",
     "email": "Adresse email",
     "discord_name": "Nom d'utilisateur Discord",
     "discord_description": "TODO",
-    "main_title": "Discord ULB CAS Auth Bot",
+    "main_title": "Bot Discord Vérification ULB",
     "main_description": "Reliez votre compte Discord avec votre compte ULB afin d'accéder aux serveurs Discord réservés à la communauté étudiante de l'ULB.",
     "link_to_discord": "Lier compte Discord",
     "unlink_from_discord": "Délier compte Discord",
@@ -23,5 +23,11 @@
     "help_page_content": "Vous trouverez ici des informations utiles pour vous aider à utiliser le bot.",
     "about": "À propos",
     "about_page_title": "À propos",
-    "about_page_content": "Ce bot est un projet développé par des étudiants de l'ULB. Il a pour but de fournir un moyen sécurisé de lier votre compte Discord avec votre compte ULB."
+    "about_page_content": "Ce bot est un projet développé par des étudiants de l'ULB. Il a pour but de fournir un moyen sécurisé de lier votre compte Discord avec votre compte ULB.",
+    "footer": "Créé avec ❤️ par <a href='https://github.com/LucasPlacentino'>Lucas Placentino</a> et <a href='https://github.com/OscarVsp'>Oscar Vsp</a> pour le <a href='https://bepolytech.be'>BEP</a> et la communauté étudiante de l'<a href='https://ulb.be'>ULB</a>.",
+    "app_notice": "Ce service n'est ni officiellement lié ni soutenu par l'Université libre de Bruxelles",
+    "terms_of_service": "Conditions d'utilisation",
+    "terms_of_service_content": "En utilisant ce service, vous acceptez les conditions d'utilisation suivantes :",
+    "privacy_policy": "Politique de confidentialité",
+    "privacy_policy_content": "Les seules informations stockées par ce service sont celles nécessaires pour lier votre compte Discord avec votre compte ULB. Cela inclut: votre nom d'utilisateur Discord, votre ID utilisateur Discord, votre ULBID, votre adresse email ULB et votre nom complet. Ces informations sont stockées de manière sécurisée et ne sont pas partagées avec des tiers. Lorsque vous déliez votre compte Discord, toutes les informations stockées sont supprimées."
 }
