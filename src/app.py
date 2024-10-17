@@ -116,6 +116,7 @@ async def lifespan(app: FastAPI): # replaces deprecated @app.on_event("startup")
     #TODO: create or init database here
     logger.info("Initializing DiscordClient")
     await app.discord.init()
+    logger.info(f"discord_auth scopes: {app.discord.scopes.replace('%20', '_')}")
     app.locale = Locale(debug=DEBUG)
     templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
     yield
