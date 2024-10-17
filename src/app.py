@@ -396,6 +396,8 @@ async def get_user_guilds(token: str = Depends(discord_auth.get_token)):
 async def discord_callback(request: Request, code: str, state: str):
     cas_user = request.session.get("user")
     if DEBUG or cas_user:
+        logger.debug(f"discord_callback: code={code}, state={state}")
+
         token, refresh_token = await discord_auth.get_access_token(code) # ?
         #if getenv("DEBUG"):
         #    logging.debug(f"discord_callback: token={token}, refresh_token={refresh_token}")
@@ -592,9 +594,9 @@ async def not_found_error_handler(request: Request, exc: Exception):
     return HTMLResponse(templates.TemplateResponse(name="404.html", context={"request": request, "current_lang": DEFAULT_LANG}, status_code=404))
     #return JSONResponse({"error": "Not Found"}, status_code=404)
 
-@app.exception_handler(500)
-async def internal_error_handler(request: Request, exc: Exception):
-    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request, "current_lang": DEFAULT_LANG}, status_code=500))
+#@app.exception_handler(500)
+#async def internal_error_handler(request: Request, exc: Exception):
+#    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request, "current_lang": DEFAULT_LANG}, status_code=500))
 
 @app.exception_handler(403)
 async def forbidden_error_handler(request: Request, exc: Exception):
@@ -611,15 +613,15 @@ async def rate_limit_error_handler(request: Request, e: RateLimited):
     return HTMLResponse(templates.TemplateResponse(name="429.html", context={"request": request,"retry_after": e.retry_after, "current°lang": DEFAULT_LANG}, status_code=429))
 
 
-@app.exception_handler(ClientSessionNotInitialized)
-async def client_session_error_handler(request: Request, e: ClientSessionNotInitialized):
-    logger.error(e)
-    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e, "current_lang": DEFAULT_LANG}, status_code=500))
-
-#@app.exception_handler(Exception)
-#async def generic_error_handler(request: Request, e: Exception):
+#@app.exception_handler(ClientSessionNotInitialized)
+#async def client_session_error_handler(request: Request, e: ClientSessionNotInitialized):
 #    logger.error(e)
-#    return HTMLResponse(templates.TemplateResponse(name="error.html", context={"request": request,"error": e, "current_lang": DEFAULT_LANG}, status_code=500))
+#    return HTMLResponse(templates.TemplateResponse(name="500.html", context={"request": request,"error": e, "current_lang": DEFAULT_LANG}, status_code=500))
+
+##@app.exception_handler(Exception)
+##async def generic_error_handler(request: Request, e: Exception):
+##    logger.error(e)
+##    return HTMLResponse(templates.TemplateResponse(name="error.html", context={"request": request,"error": e, "current_lang": DEFAULT_LANG}, status_code=500))
 
 
 # ----------------------------------------------------------------------------
