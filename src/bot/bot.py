@@ -24,6 +24,14 @@ logger = logging.getLogger("bot")
 
 class Bot(InteractionBot):
 
+    # Singleton pattern
+    _instance = None
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+        
+
     def __init__(self, _logger, _logFormatter, _debug=False):
 
         self.locale = Locale(debug=_debug)
@@ -33,12 +41,20 @@ class Bot(InteractionBot):
         self.test_mode = bool(getenv("TEST_GUILD"))
         self.cog_not_loaded: List[str] = []
 
+        # self.token = getenv("DISCORD_BOT_TOKEN")
+        # if not self.token:
+        #     logger.error("No discord bot token provided")
+        #     raise ValueError("No discord bot token provided")
+
         if self.test_mode:
             logger.info("Starting Bot in debug mode...")
             super().__init__(intents=intents, test_guilds=[int(getenv("TEST_GUILD"))])
         else:
             logger.info("Starting Bot in prod mode...")
             super().__init__(intents=intents)
+
+        # TODO: rather read database directly?
+        self.guild_roles = {}  # Store guild->role mappings ["GuildID": "RoleID"]
 
         self.load_commands()
 
@@ -162,6 +178,58 @@ class Bot(InteractionBot):
         logger.trace(
             f"[Bot] Message command '{interaction.application_command.name}:{interaction.id}' from '{interaction.guild.name+'#'+interaction.channel.name if interaction.guild else 'DM'}' by '{interaction.author.name}' at '{interaction.created_at}' ended normally"
         )
+
+    async def add_role_to_user(self, guild_id: int, user_id: int, role_id: int) -> bool:
+        """Add a role to a user in a specific guild"""
+        try:
+            guild = self.get_guild(guild_id)
+            if not guild:
+                logger.error(f"Guild {guild_id} not found")
+                return False
+                
+            guild_member = guild.get_member(user_id)
+            if not guild_member:
+                logger.error(f"Member {user_id} not found in guild {guild_id}")
+                return False
+                
+            role = guild.get_role(role_id)
+            if not role:
+                logger.error(f"Role {role_id} not found in guild {guild_id}")
+                return False
+                
+            await guild_member.add_roles(role)
+            logger.info(f"Added role {role.name} to user {guild_member.name} in {guild.name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error adding role: {e}")
+            return False
+            
+    async def remove_role_from_user(self, guild_id: int, user_id: int, role_id: int) -> bool:
+        """Remove a role from a user in a specific guild"""
+        try:
+            guild = self.get_guild(guild_id)
+            if not guild:
+                logger.error(f"Guild {guild_id} not found")
+                return False
+                
+            guild_member = guild.get_member(user_id)
+            if not guild_member:
+                logger.error(f"Member {user_id} not found in guild {guild_id}") 
+                return False
+                
+            role = guild.get_role(role_id)
+            if not role:
+                logger.error(f"Role {role_id} not found in guild {guild_id}")
+                return False
+                
+            await guild_member.remove_roles(role)
+            logger.info(f"Removed role {role.name} from user {guild_member.name} in {guild.name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error removing role: {e}")
+            return False
 
 
 """

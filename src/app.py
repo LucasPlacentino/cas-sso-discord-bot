@@ -52,6 +52,10 @@ logger = logging.getLogger("app")
 
 templates = Jinja2Templates(directory="src/templates")
 
+# TODO: here?
+from bot import Bot
+bot = Bot(logger, logger.formatter, debug=DEBUG)
+
 #locale: Locale = Locale(debug=DEBUG)
 
 def init():
@@ -130,9 +134,25 @@ async def lifespan(app: FastAPI): # replaces deprecated @app.on_event("startup")
     logger.info(f"discord_auth scopes: {app.discord.scopes.replace('%20', '_')}")
     app.locale = Locale(debug=DEBUG)
     templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
+
+    #asyncio.create_task(bot.start(bot.token))
+    #app.state.bot = bot
+    # Then to use the bot inside FastAPI:
+    #async with request.app.state.bot as bot:
+    #    discord_user = await bot.get_user(user_discord_id)
+    # Or in async function:
+    #bot = request.app.state.bot
+    #discord_user = await bot.get_user(user_discord_id)
+
+    logger.debug("FastAPI app startup done")
     yield
+
     # --- shutdown ---
-    logger.info("FastAPI app shutdown")
+    logger.info("Discord Bot shutdown...")
+    #TODO: don't forget to close?
+    #await app.state.bot.close()
+    #await bot.close()
+    logger.info("FastAPI app shutdown...")
 
 # FastAPI App
 #app = FastAPI(
@@ -787,5 +807,35 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         logger.info("Shutting down...")
+
+# if __name__ == '__main__':
+#     init()
+
+#     # Initialize bot instance
+#     app.state.bot = bot
+
+#     try:
+#         # Run both FastAPI and Discord bot in a single process
+#         config = uvicorn.Config(
+#             app=app,
+#             host=str(getenv('FASTAPI_HOST', 'localhost')),
+#             port=int(getenv('FASTAPI_PORT', 8000)),
+#             reload=bool(getenv('DEV_ENV')),
+#             log_level="debug" if DEBUG else "info"
+#         )
+#         server = uvicorn.Server(config)
+
+#         # Run server in asyncio event loop
+#         asyncio.run(server.serve())
+
+#     #! TODO: DOES IT REALLY HANDLES EXCEPTIONS AND KEYBINTERR CORRECTLY ?
+
+#     except KeyboardInterrupt:
+#         logger.info("KeyboardInterrupt: Shutting down...")
+#     except Exception as e:
+#         logger.error(f"Unexpected error: {e}")
+#         logger.info("Shutting down...")
+
+# Run bot and fastapi as single process in asyncio tasks, doesn't require complex inter-process communication, full shutdown is easier, and the bot instance is easier to share via app.state
 
 #EOF
