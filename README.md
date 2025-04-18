@@ -32,3 +32,6 @@ Uses:
 ## Acknowledgments
 - [**ULBDiscordBot**](https://github.com/bepolytech/ULBDiscordBot): predecessor to this bot
 - [**DocHub**](https://github.com/DocHub-ULB/DocHub): student-made ULB courses documents and summaries repository accessible via ULB's CAS auth.  
+
+## Contribute
+See [`CONTRIBUTING.md`](/.github/CONTRIBUTING.md)  
