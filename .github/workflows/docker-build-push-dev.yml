@@ -67,6 +67,8 @@ jobs:
             org.opencontainers.image.version="dev-${{ steps.get_version.outputs.version }}"
           build-args: |
             VERSION="dev-${{ steps.get_version.outputs.version }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: 🛠 Build docker DEV image for Docker Hub
         uses: docker/build-push-action@v5
@@ -85,6 +87,8 @@ jobs:
             org.opencontainers.image.version="dev-${{ steps.get_version.outputs.version }}"
           build-args: |
             VERSION="dev-${{ steps.get_version.outputs.version }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: 🔍 Check Docker images are built
         run: |
