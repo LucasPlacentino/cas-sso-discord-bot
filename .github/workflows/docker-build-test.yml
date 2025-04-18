@@ -1,4 +1,4 @@
-name: Build test docker image
+name: Test docker image build
 
 on:
   workflow_dispatch:
@@ -11,34 +11,98 @@ jobs:
   docker:
     name: docker build test
     runs-on: ubuntu-latest
+    permissions:
+      #packages: write
+      contents: read
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Set up QEMU
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 📦 Extract VERSION
+        id: get_version
+        run: |
+          FULL=$(cat VERSION)
+          MAJOR=$(echo "$FULL" | cut -d. -f1)
+          MINOR=$(echo "$FULL" | cut -d. -f1,2)
+
+          echo "version=$FULL" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+
+          echo "🔢 Version: $FULL"
+          echo "🔢 Minor: $MINOR"
+          echo "🔢 Major: $MAJOR"
+
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
-      -
-        name: Set up Docker Buildx
+        with:
+          platforms: linux/amd64,linux/arm64
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      #-
-      #  name: Login to DockerHub
-      #  uses: docker/login-action@v2
+
+      #- name: 🔐 Log in to GitHub Container Registry (GHCR)
+      #  uses: docker/login-action@v3
+      #  with:
+      #    registry: ghcr.io
+      #    username: ${{ github.actor }}
+      #    password: ${{ secrets.GHCR_TOKEN }}
+      #- name: 🔐 Login to DockerHub
+      #  uses: docker/login-action@v3
       #  with:
       #    username: ${{ secrets.DOCKERHUB_USERNAME }}
       #    password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Build and export docker image
+      
+      - name: 🛠 Build docker image (no push) for GHRC
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: false # only test build and push
-          load: true
-          tags: bepolytech/ulbdiscordbot:test
+          push: false # only test build
+          load: false # only test build
+          tags: bepolytech/ulbdiscordbot:test-build # only test build
+          #tags: |
+          #  ghcr.io/${{ github.repository }}:latest
+          #  ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
+          #  ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.minor }}
+          #  ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.major }}
+          labels: |
+            org.opencontainers.image.test="BUILD TEST"
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
+          build-args: |
+            VERSION=${{ steps.get_version.outputs.version }}
+
+      - name: 🛠 Build docker image (no push) for Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false # only test build
+          load: false # only test build
+          tags: bepolytech/ulbdiscordbot:test-build # only test build
+          #tags: |
+          #  docker.io/${{ github.repository }}:latest
+          #  docker.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
+          #  docker.io/${{ github.repository }}:${{ steps.get_version.outputs.minor }}
+          #  docker.io/${{ github.repository }}:${{ steps.get_version.outputs.major }}
+          labels: |
+            org.opencontainers.image.description="BUILD TEST"
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
+          build-args: |
+            VERSION=${{ steps.get_version.outputs.version }}
+
+      - name: 🔍 Check Docker images are built
+        run: |
+          echo "🔍 Checking if the Docker images are built..."
+          # Check if the images exist locally
+          docker images
       
       #-
       #  name: Test docker image
       #  run: |
       #    docker run --rm bepolytech/ulbdiscordbot:test
+
+      - name: ✅ Done (no publish)
+        run: echo "✔ Docker image built successfully, not pushed."
 
