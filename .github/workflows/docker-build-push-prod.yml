@@ -95,7 +95,7 @@ jobs:
       #-
       #  name: Test docker image
       #  run: |
-      #    docker run --rm bepolytech/ulbdiscordbot:test
+      #    docker run --rm ${{ github.actor }}/${{ vars.containername }}:latest
 
       - name: ✅ Done
         run: echo "✅ PROD Docker image built and pushed successfully."
