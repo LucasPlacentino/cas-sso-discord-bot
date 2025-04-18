@@ -57,6 +57,8 @@ jobs:
             org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
           build-args: |
             VERSION=${{ steps.get_version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: 🔍 Check Docker images are built
         run: |
