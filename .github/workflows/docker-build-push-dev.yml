@@ -42,7 +42,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.actor }} # or ${{ github.repository_owner }} ?
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: 🔐 Login to DockerHub
         uses: docker/login-action@v3
@@ -58,10 +58,10 @@ jobs:
           push: true
           load: true
           tags: |
-            ghcr.io/${{ github.repository }}:dev-latest
-            ghcr.io/${{ github.repository }}:dev-${{ steps.get_version.outputs.version }}
-            ghcr.io/${{ github.repository }}:dev-${{ steps.get_version.outputs.minor }}
-            ghcr.io/${{ github.repository }}:dev-${{ steps.get_version.outputs.major }}
+            ghcr.io/${{ github.actor }}/${{ github.repository }}:dev-latest
+            ghcr.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.version }}
+            ghcr.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.minor }}
+            ghcr.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.major }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.version="dev-${{ steps.get_version.outputs.version }}"
@@ -76,10 +76,10 @@ jobs:
           push: true
           load: true
           tags: |
-            docker.io/${{ github.repository }}:dev-latest
-            docker.io/${{ github.repository }}:dev-${{ steps.get_version.outputs.version }}
-            docker.io/${{ github.repository }}:dev-${{ steps.get_version.outputs.minor }}
-            docker.io/${{ github.repository }}:dev-${{ steps.get_version.outputs.major }}
+            docker.io/${{ github.actor }}/${{ github.repository }}:dev-latest
+            docker.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.version }}
+            docker.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.minor }}
+            docker.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.major }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.version="dev-${{ steps.get_version.outputs.version }}"
