@@ -33,11 +33,11 @@ jobs:
           echo "🔢 Minor: $MINOR"
           echo "🔢 Major: $MAJOR"
 
-      - name: Set up QEMU
+      - name: ⚙️ Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
           platforms: linux/amd64,linux/arm64
-      - name: Set up Docker Buildx
+      - name: ⚙️ Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
       #- name: 🔐 Log in to GitHub Container Registry (GHCR)
@@ -104,5 +104,5 @@ jobs:
       #    docker run --rm bepolytech/ulbdiscordbot:test
 
       - name: ✅ Done (no publish)
-        run: echo "✔ Docker image built successfully, not pushed."
+        run: echo "✅ Docker image built successfully, not pushed."
 
