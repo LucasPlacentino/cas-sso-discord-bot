@@ -42,7 +42,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }} # or ${{ github.repository_owner }} ?
+          username: ${{ github.repository_owner }} # or ${{ github.actor }} ?
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: 🔐 Login to DockerHub
         uses: docker/login-action@v3
@@ -58,10 +58,10 @@ jobs:
           push: true
           load: true
           tags: |
-            ghcr.io/${{ github.actor }}/${{ github.repository }}:latest
-            ghcr.io/${{ github.actor }}/${{ github.repository }}:${{ steps.get_version.outputs.version }}
-            ghcr.io/${{ github.actor }}/${{ github.repository }}:${{ steps.get_version.outputs.minor }}
-            ghcr.io/${{ github.actor }}/${{ github.repository }}:${{ steps.get_version.outputs.major }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:${{ steps.get_version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:${{ steps.get_version.outputs.minor }}
+            ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:${{ steps.get_version.outputs.major }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
@@ -78,10 +78,10 @@ jobs:
           push: true
           load: true
           tags: |
-            docker.io/${{ github.actor }}/${{ github.repository }}:latest
-            docker.io/${{ github.actor }}/${{ github.repository }}:${{ steps.get_version.outputs.version }}
-            docker.io/${{ github.actor }}/${{ github.repository }}:${{ steps.get_version.outputs.minor }}
-            docker.io/${{ github.actor }}/${{ github.repository }}:${{ steps.get_version.outputs.major }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:${{ steps.get_version.outputs.version }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:${{ steps.get_version.outputs.minor }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:${{ steps.get_version.outputs.major }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
@@ -99,7 +99,7 @@ jobs:
       #-
       #  name: Test docker image
       #  run: |
-      #    docker run --rm ${{ github.actor }}/${{ vars.containername }}:latest
+      #    docker run --rm ${{ github.repository_owner }}/${{ vars.containername }}:latest
 
       - name: ✅ Done
         run: echo "✅ PROD Docker image built and pushed successfully."
