@@ -1,4 +1,4 @@
-name: Build and push prod docker image
+name: Build and push PROD docker image
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   docker:
-    name: docker prod build and push
+    name: docker PROD build and push
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -50,7 +50,7 @@ jobs:
       #    username: ${{ secrets.DOCKERHUB_USERNAME }}
       #    password: ${{ secrets.DOCKERHUB_TOKEN }}
       
-      - name: 🛠 Build docker image for GHRC
+      - name: 🛠 Build PROD docker image for GHRC
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -68,14 +68,13 @@ jobs:
           build-args: |
             VERSION=${{ steps.get_version.outputs.version }}
 
-      - name: 🛠 Build docker image for Docker Hub
+      - name: 🛠 Build PROD docker image for Docker Hub
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           load: true
-          tags: bepolytech/ulbdiscordbot:test-build # only test build
           tags: |
             docker.io/${{ github.repository }}:latest
             docker.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
@@ -99,4 +98,4 @@ jobs:
       #    docker run --rm bepolytech/ulbdiscordbot:test
 
       - name: ✅ Done
-        run: echo "✅ Prod Docker image built and pushed successfully."
+        run: echo "✅ PROD Docker image built and pushed successfully."
