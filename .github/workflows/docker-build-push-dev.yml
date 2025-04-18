@@ -76,10 +76,10 @@ jobs:
           push: true
           load: true
           tags: |
-            docker.io/${{ github.actor }}/${{ github.repository }}:dev-latest
-            docker.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.version }}
-            docker.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.minor }}
-            docker.io/${{ github.actor }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.major }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:dev-latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.version }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.minor }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ github.repository }}:dev-${{ steps.get_version.outputs.major }}
           labels: |
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.version="dev-${{ steps.get_version.outputs.version }}"
