@@ -66,7 +66,7 @@ jobs:
           #  ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.minor }}
           #  ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.major }}
           labels: |
-            org.opencontainers.image.test="BUILD TEST"
+            org.opencontainers.image.description="BUILD TEST"
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.version=${{ steps.get_version.outputs.version }}
           build-args: |
