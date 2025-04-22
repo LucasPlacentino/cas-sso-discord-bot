@@ -713,6 +713,7 @@ button:hover {
     border: 3px solid #044b93;
     color: #044b93;
     transition: 0.15s ease-in-out;
+    text-decoration: underline;
 }
 
 .button-icon {
