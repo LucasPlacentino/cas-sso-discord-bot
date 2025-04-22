@@ -43,8 +43,9 @@ class Locale:
     
     def lang_str(self, string: str, user_lang: str) -> str:
         if user_lang not in self.languages.keys():
-            if self.debug:
-                logger.debug(f"'{string}' translation in {user_lang} not found, using default language ({DEFAULT_LANG})")
+            # if self.debug:
+            #     logger.debug(f"'{string}' translation in {user_lang} not found, using default language ({DEFAULT_LANG})")
+            logger.debug(f"'{string}' translation in {user_lang} not found, using default language ({DEFAULT_LANG})")
             user_lang = DEFAULT_LANG
         return self.languages[user_lang].get(string, self.languages[DEFAULT_LANG].get(string, string))
 

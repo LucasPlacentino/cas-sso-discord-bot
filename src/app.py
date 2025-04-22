@@ -2,6 +2,7 @@
 
 import os
 from os import getenv, path
+import secrets
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -41,12 +42,18 @@ from locales import Locale, DEFAULT_LANG
 # ------------
 
 
-VERSION = "2.0.0-alpha6"
+VERSION = "2.0.0-alpha7"
+with open(path.join(path.dirname(__file__),"../VERSION"), "r", encoding="utf-8") as version_file:
+    VERSION = version_file.read().strip()
+    print(f"Version extracte from VERSION file: {VERSION}")
 
 
 # ------------
 
 DEBUG=True if getenv("DEBUG") or getenv("DEBUG") is not None or getenv("DEBUG") != "" else False
+DEV_ENV=True if getenv("DEV_ENV") or getenv("DEV_ENV") is not None or getenv("DEV_ENV") != "" else False
+if DEV_ENV:
+    DEBUG=True # DEV_ENV is always in DEBUG mode
 
 logger = logging.getLogger("app")
 
@@ -65,7 +72,7 @@ def init():
     #stream_handler.setFormatter(log_formatter)
     #logger.addHandler(stream_handler)
 
-    if DEBUG:
+    if DEBUG or DEV_ENV:
         #logging.basicConfig(level=logging.DEBUG)
         logging.basicConfig(
             level=logging.DEBUG,
@@ -109,7 +116,7 @@ discord_auth = DiscordOAuthClient(
     client_id=getenv('DISCORD_CLIENT_ID'),
     client_secret=getenv('DISCORD_CLIENT_SECRET'),
     #redirect_url=getenv('DISCORD_REDIRECT_URI'),
-    redirect_uri=(str(getenv("SITE_URL", "http://localhost:8000")) if not DEBUG else "http://localhost:8000")+"/discord-callback",
+    redirect_uri=(str(getenv("SITE_URL", "http://localhost:8000")) if not DEV_ENV else "http://localhost:8000")+"/discord-callback",
     scopes=("identify","guilds")#, "guilds", "email") # scopes default: just "identify"
 )
 logger.info(f"discord_auth scopes: {discord_auth.scopes.replace('%20', '_')}")
@@ -171,22 +178,24 @@ app.mount("/static", StaticFiles(directory="src/static"), name="static")
 cas_client = CASClient(
     version=getenv('CAS_VERSION', 1),
     #service_url=getenv('CAS_SERVICE_URL', "http://localhost:8000/login"),
-    service_url=(str(getenv('SITE_URL', "http://localhost:8000")) if not DEBUG else "http://localhost:8000")+"/login",
+    service_url=(str(getenv('SITE_URL', "http://localhost:8000")) if not DEV_ENV else "http://localhost:8000")+"/login",
     server_url=getenv('CAS_SERVER_URL'),
     #validate_url=getenv('CAS_VALIDATE_URL', "/serviceValidate"),
 )
 CAS_VALIDATE_PATH = getenv('CAS_VALIDATE_PATH', "/serviceValidate") # or "/proxyValidate" ?
 
 # Session Middleware for FastAPI
-APP_SECRET_KEY = getenv('APP_SECRET_KEY')
-if APP_SECRET_KEY is None:
-    logger.error("APP_SECRET_KEY not set")
-    exit(1)
+def _get_app_secret_key():
+    _app_secret_key = getenv('APP_SECRET_KEY') if DEV_ENV else secrets.token_urlsafe(64) # generate a random secret key (if not DEV_ENV and not set in env var)
+    if _app_secret_key is None:
+        logger.error("APP_SECRET_KEY not set while in DEV_ENV")
+        exit(1)
+    return _app_secret_key
 app.add_middleware(SessionMiddleware, # https://www.starlette.io/middleware/#sessionmiddleware
-                    secret_key=APP_SECRET_KEY,
+                    secret_key=_get_app_secret_key(),
                     max_age=int(getenv('SESSION_MAX_AGE',12*3600)), # 12*1 hour. Session expiry time in seconds. Defaults to 2 weeks. If set to None then the cookie will last as long as the browser session
-                    same_site="strict", # flag prevents the browser from sending session cookie along with cross-site requests, default:"lax" or "strict"
-                    https_only=False, # indicate that Secure flag should be set (can be used with HTTPS only), default:False
+                    same_site="strict" if not (DEBUG or DEV_ENV) else "lax", # flag prevents the browser from sending session cookie along with cross-site requests, default:"lax" or "strict"
+                    https_only=not DEV_ENV, # indicate that Secure flag should be set (can be used with HTTPS only), default:False
                     )
 
 
@@ -203,15 +212,20 @@ def env_var(key: str, default: Optional[str] = None):
         logger.error(f"In Jinja2Template env_var(key) filter: Environment variable with key={key} is not set")
         return ""
     return value
-
 def is_debug() -> bool:
     return DEBUG
+def is_dev_env() -> bool:
+    return DEV_ENV
+def version():
+    return VERSION
 
 # Provide Python functions inside Jinja templates :
 templates.env.globals.update(env_var=env_var) # or templates.env.filter["env_var"] ?
 #templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
 templates.env.globals.update(time=time) # get current time
 templates.env.globals.update(is_debug=is_debug) # check if in debug mode
+templates.env.globals.update(is_dev_env=is_dev_env) # check if in dev env
+templates.env.globals.update(get_version=version) # get environment variable
 
 
 #@app.on_event("startup") #* DEPRECATED
@@ -285,11 +299,11 @@ async def user(request: Request, lang: Annotated[str, Path(title="2-letter langu
     request.session['lang'] = lang
     if DEBUG:
         logger.debug(f"session.user: {request.session.get('user')}")
-        if debug == APP_SECRET_KEY:
-            logger.debug("Debug mode, user page accessed with ?debug=`app_key`")
+        if DEV_ENV and debug == _get_app_secret_key():
+            logger.debug("DEV mode, user page accessed with ?debug=`app_key`")
             logger.debug(f"session: {request.session}")
             if discorddebug:
-                logger.debug(f"Debug mode: user_with_discord page accessed with ?discorddebug=true")
+                logger.debug(f"DEV mode: user_with_discord page accessed with ?discorddebug=true")
                 return templates.TemplateResponse(name="user_with_discord.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "discord_id": "000", "discord_username": "@debug_discord_username", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
             return templates.TemplateResponse(name="user.jinja", context={"request": request,"cas_username": "debug_username", "cas_email": "debug_email@example.org", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('user_page_title', lang)})
     user = request.session.get("user")
@@ -340,7 +354,7 @@ async def login(request: Request, next: Optional[str] = None, ticket: Optional[s
 
     # There is a ticket, the request come from CAS as callback.
     # need call `verify_ticket()` to validate ticket and get user profile.
-    if DEBUG:
+    if DEV_ENV:
         logger.debug(f'service_ticket: {service_ticket}')
         logger.debug(f'next: {next}')
 
@@ -354,7 +368,7 @@ async def login(request: Request, next: Optional[str] = None, ticket: Optional[s
 
     if DEBUG:
         logger.debug("Got response from ticket verification")
-        logger.debug(f"proxy_ticket: {proxy_ticket}")
+        logger.debug(f"proxy_ticket: {proxy_ticket if DEV_ENV else 'hidden'}")
         logger.debug(f"user_from_cas_proxy, attributes_from_cas_proxy, pgtiou_proxy: {user_from_cas_proxy}, {attributes_from_cas_proxy}, {pgtiou_proxy}")
         logger.debug(f"CAS verify service_ticket response: user: {user_from_cas}, attributes: {attributes_from_cas}, pgtiou: {pgtiou}")
         logger.debug(f"attribute.cn (complete name) = {attributes_from_cas.get('cn')}, attribute.mail = {attributes_from_cas.get('mail')}, user = {user_from_cas}, attributes_from_cas.supannRefId = {attributes_from_cas.get('supannRefId')}, attributes_from_cas.supannRoleEntite (group) = {attributes_from_cas.get('supannRoleEntite')}")
@@ -449,8 +463,8 @@ async def discord_callback(request: Request, code: str, state: str):
         logger.debug(f"discord_callback: code={code}, state={state}")
 
         token, refresh_token = await discord_auth.get_access_token(code) # ?
-        if getenv("DEBUG"):
-            logger.debug(f"discord_callback: token={token}, refresh_token={refresh_token}")
+        if DEBUG:
+            logger.debug(f"discord_callback: token={token if DEV_ENV else 'hidden'}, refresh_token={refresh_token if DEV_ENV else 'hidden'}")
         request.session['discord_refresh_token'] = refresh_token
         request.session['discord_token'] = token #await discord_auth.get_token(request=request) #! or just token from above ?
 
@@ -469,7 +483,7 @@ async def discord_callback(request: Request, code: str, state: str):
             logger.debug("discord_callback: getting user guilds")
             #TODO: get user guilds from discord
             all_user_guilds: List[DiscordGuild] = await get_user_guilds(token=token)
-            if getenv("DEBUG"):
+            if DEBUG:
                 logger.debug(f"discord_callback: user_guilds[0]={all_user_guilds[0]}")
             ###user_guilds: List[DiscordGuild] = await discord_auth.guilds()
 
@@ -737,8 +751,8 @@ async def run_bot():
 async def run_webapp():
     host = str(getenv('FASTAPI_HOST', 'localhost'))
     port = int(getenv('FASTAPI_PORT', 8000))
-    reload = True if getenv('DEV_ENV', False) is not None and getenv('DEV_ENV', False) != "" else False
-    debug = True if getenv('DEBUG', False) is not None and getenv('DEBUG', False) != "" else False
+    reload = DEV_ENV
+    debug = DEBUG
 
     logger.debug(f"Running FastAPI webapp{ "%%%%% WITH RELOAD %%%%%" if reload else "" }")
     logger.debug(f"with port={port}, host={host}")
