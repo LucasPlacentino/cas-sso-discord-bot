@@ -6,7 +6,7 @@
     "discord_name": "Nom d'utilisateur Discord",
     "discord_description": "TODO",
     "main_title": "Titre du site",
-    "main_description": "Reliez votre compte Discord avec votre compte d'authentication CAS afin d'accéder aux serveurs Discord réservés aux utilisateurs.",
+    "main_description": "Reliez votre compte Discord avec votre compte d'authentication CAS afin d'accéder aux serveurs Discord restreints par le bot.",
     "link_to_discord": "Lier compte Discord",
     "unlink_from_discord": "Délier compte Discord",
     "unlink_from_discord_notice": "<b>Si vous déliez votre compte Discord associé, celui-ci perdra sans-doute ses accès aux serveurs réservés où le bot est setup. Il vous est cependant tout a fait possible de le relier à nouveau juste après.</b>",

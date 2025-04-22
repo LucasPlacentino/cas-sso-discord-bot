@@ -18,7 +18,8 @@
         </div>
         <div class="gjs-title-row" id="i6uu1">
             <div class="gjs-cell" id="it38h">
-                <div class="flex-title" id="if6j5">{{ lang_str("main_title", current_lang)|safe }}</div>
+                <div class="flex-title" id="if6j5">{{ env_var('APP_NAME')|safe }}</div>
+                <!-- <div class="flex-title" id="if6j5">{{ lang_str("main_title", current_lang)|safe }}</div> -->
             </div>
         </div>
         <div id="ixr83">
@@ -27,6 +28,7 @@
         </div>
         <div class="gjs-row" id="iayhk">
             <div class="gjs-cell" id="iqrik">
+                <!-- <div class="flex-desc" id="il3a7">{{ env_var('APP_DESCRIPTION')|safe }}</div> -->
                 <div class="flex-desc" id="il3a7">{{ lang_str("main_description", current_lang)|safe }}</div>
             </div>
         </div>

@@ -6,7 +6,7 @@
     "discord_name": "Discord username",
     "discord_description": "TODO",
     "main_title": "Webapp Title",
-    "main_description": "Link your Discord account with your CAS auth account to access the Discord servers that are reserved for these users.",
+    "main_description": "Link your Discord account with your CAS auth account to access the Discord servers that are restricted by the bot.",
     "link_to_discord": "Link Discord account",
     "unlink_from_discord": "Unlink Discord account",
     "unlink_from_discord_notice": "<b>If you unlink your Discord account, it will propably lose its access to servers where the bot is setup. However, you will be able to re-link it again right after.</b>",
