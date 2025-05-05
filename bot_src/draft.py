@@ -4,7 +4,9 @@ import disnake
 import time
 from collections import defaultdict
 from disnake.ext import commands
-
+from dotenv import load_dotenv
+from os import getenv
+load_dotenv()
 
 # --- test: ---
 from aiolimiter import AsyncLimiter # need to pip install aiolimiter
@@ -16,9 +18,14 @@ trusted_limiters = defaultdict(lambda: AsyncLimiter(1000, 1)) # 1000 r/s/IP
 # Track which IPs have authed successfully at least once
 trusted_ips = set()
 
+BEHIND_PROXY = getenv("BEHIND_PROXY", False)  # Set to True if behind a reverse proxy (e.g., Nginx)
+
 @web.middleware
 async def rate_limit_middleware(request, handler):
-    client_ip = request.headers.get("X-Forwarded-For", request.remote)
+    if BEHIND_PROXY:
+        client_ip = request.headers.get("X-Forwarded-For", request.remote)
+    else:
+        client_ip = request.remote
 
     # Choose limiter based on IP trust
     if client_ip in trusted_ips:
@@ -32,7 +39,7 @@ async def rate_limit_middleware(request, handler):
         return json_error_response(
             error_code="rate_limited",
             message="Rate limit exceeded, please try again later",
-            http_status=429
+            http_status=web.HTTPTooManyRequests.status # 429
         )
         # return web.json_response({
         #     "success": False,
@@ -51,10 +58,14 @@ async def rate_limit_middleware(request, handler):
             return await handler(request) # Proceed with the request
         else:
             # If not authed, return unauthorized response
+            # raise web.HTTPUnauthorized(
+            #     reason="Invalid or missing API key",
+            #     headers={"X-Error": "Invalid or missing API key"}
+            # )
             return json_error_response(
                 error_code="unauthorized",
                 message="Invalid or missing API key",
-                http_status=401
+                http_status=web.HTTPUnauthorized.status # 401
             )
             # return web.json_response({
             #     "success": False,
@@ -169,7 +180,8 @@ async def handle_add_role(request):
         return json_success_response(message=f"Role {role.name} (id={role_id}) added to {user.name} (id={user_id})", data=data)
         #return web.json_response({"success": True,"message": f"Role {role.name} (id={role_id}) added to {user.name} (id={user_id})", "data": data})
     else:
-        return json_error_response(error_code="role_not_found", message=f"Role with id {role_id} not found", http_status=404)
+        #return json_error_response(error_code="role_not_found", message=f"Role with id {role_id} not found", http_status=404)
+        return json_error_response(error_code="role_not_found", message=f"Role with id {role_id} not found", http_status=web.HTTPNotFound.status) # 404
         #return web.json_response({"success": False, "error": {"code": "role_not_found", "message": f"Role with id {role_id} not found"}}, status=404)
 
 @routes.post("/send-message")
@@ -210,3 +222,9 @@ if __name__ == "__main__":
         start_bot(),
         uvicorn.run(app, host="0.0.0.0", port=8001)
     ))
+
+    # # OR :
+    # runner = web.AppRunner(app)
+    # await runner.setup()
+    # site = web.TCPSite(runner, 'localhost', 8080)
+    # await site.start()
