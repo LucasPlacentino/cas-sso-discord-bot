@@ -23,7 +23,7 @@ BEHIND_PROXY = getenv("BEHIND_PROXY", False)  # Set to True if behind a reverse 
 @web.middleware
 async def rate_limit_middleware(request, handler):
     if BEHIND_PROXY:
-        client_ip = request.headers.get("X-Forwarded-For", request.remote)
+        client_ip = request.headers.get("X-Forwarded-For", request.remote) # or request.headers.get("X-Real-IP") ?
     else:
         client_ip = request.remote
 
