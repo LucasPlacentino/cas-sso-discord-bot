@@ -1,4 +1,6 @@
 # cas-sso-discord-bot
+# License: AGPL-3.0-or-later
+# Copyright (C) 2024  LucasPlacentino
 
 import os
 from os import getenv, path
@@ -42,10 +44,10 @@ from locales import Locale, DEFAULT_LANG
 # ------------
 
 
-VERSION = "2.0.0-alpha7"
+#VERSION = "2.0.0-alpha7"
 with open(path.join(path.dirname(__file__),"../VERSION"), "r", encoding="utf-8") as version_file:
     VERSION = version_file.read().strip()
-    print(f"Version extracte from VERSION file: {VERSION}")
+    print(f"Version extracted from VERSION file: {VERSION}")
 
 
 # ------------
@@ -127,9 +129,9 @@ class App(FastAPI):
     #locale: Locale
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.locale: Locale = None # extends FastAPI with locale
+        self.locale: Locale = None # extends FastAPI with locale, adds it during startup in lifespan()
         self.discord = discord_auth
-        self.cas_attr_filter = None
+        self.cas_attr_filter = None # adds it during init()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI): # replaces deprecated @app.on_event("startup") and @app.on_event("shutdown")

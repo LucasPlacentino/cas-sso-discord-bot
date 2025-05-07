@@ -18,6 +18,7 @@ class Locale:
         #for file in listdir(path.join(path.dirname(__file__))):
         for file in listdir(self.locales_path):
             if not file.endswith(".json"): #only get json files
+                # TODO: check if there is at least one json file in the locales folder
                 continue
             lang_code = file.split(".")[0] # get filename without extension
             if len(lang_code) == 5: # handle cases like "en_US.json"
