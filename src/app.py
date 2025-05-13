@@ -177,7 +177,7 @@ app = App(
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
 # CAS Client
-cas_client = CASClient(
+cas_client = CASClient( # Use CASClientV2 or V3 ? for proxy_callback url (for pgt from pgtiou)
     version=getenv('CAS_VERSION', 1),
     #service_url=getenv('CAS_SERVICE_URL', "http://localhost:8000/login"),
     service_url=(str(getenv('SITE_URL', "http://localhost:8000")) if not DEV_ENV else "http://localhost:8000")+"/login",
