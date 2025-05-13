@@ -362,8 +362,14 @@ async def login(request: Request, next: Optional[str] = None, ticket: Optional[s
 
     # Send service ticket (ST) to CAS server to verify, get back user details as xml/dict
     user_from_cas, attributes_from_cas, pgtiou = cas_client.verify_ticket(service_ticket) # pgtIou means Proxy Granting Ticket IOU
-    proxy_ticket = cas_client.get_proxy_ticket(pgtiou) # get Proxy Ticket (PT) for Proxy Callback
-    user_from_cas_proxy, attributes_from_cas_proxy, pgtiou_proxy = cas_client.verify_ticket(proxy_ticket) # verify ticket again to get user details
+    ################
+    # For proxy tickets etc:
+    # Need a PGT-callback endpoint where the CAS server will send the PGT (along with the PGTIOU as well) -> global pgts = {pgtiou: pgt}
+    # We then here get the PGT from pgts.get(pgtIou), we can then store the PGT (not necessary to store the pgtiou) with the user data
+    # When retreiving user data later, we need to use the PGT to get a PT (single-use!), then get user data with this PT
+    ################
+    #proxy_ticket = cas_client.get_proxy_ticket(pgtiou) # get Proxy Ticket (PT) for Proxy Callback
+    #user_from_cas_proxy, attributes_from_cas_proxy, pgtiou_proxy = cas_client.verify_ticket(proxy_ticket) # verify ticket again to get user details
 
     # Ony keep attributes that are in the filter (from file cas_attributes_filter.json)
     filtered_attributes = {key: value for key, value in attributes_from_cas.items() if key in app.cas_attr_filter}
