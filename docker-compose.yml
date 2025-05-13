@@ -11,6 +11,7 @@ services:
       - .env
     #volumes:
     #  - ./:/app
+    #  - ./db_data:/db_data # if using SQLite, will create the db file here
     network_mode: host
     restart: unless-stopped # or unless-stopped or on-failure
 #    #! Comment this below if using Google Sheets as a database
