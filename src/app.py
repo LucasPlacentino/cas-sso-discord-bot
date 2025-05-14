@@ -60,6 +60,10 @@ logger = logging.getLogger("app")
 
 templates = Jinja2Templates(directory="src/templates")
 
+# Custom wrapper for the lang parameter with predefined metadata
+# ! does this even work ?
+LangCodePath = Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en", "fr"])] # TODO: use this to improve endpoints def readability ?
+
 # TODO: here?
 from bot import Bot
 bot = Bot(logger, logger.formatter, debug=DEBUG)
@@ -254,8 +258,8 @@ async def index_without_lang(request: Request):
     return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/')
-async def index(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):# lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
-    if lang in ["favicon.ico"]:
+async def index(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    if lang in ["favicon.ico"]: # fixes bug preventing browser from retrieving favicon 
         return
     request.session['lang'] = lang
     #check if user is already logged in in request.session, redirect to user if so
