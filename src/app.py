@@ -8,12 +8,12 @@ import secrets
 from dotenv import load_dotenv
 load_dotenv()
 
-from typing import Optional, List
+from typing import Optional, List, Annotated # TODO: use Annotated as much as possible
 import sys
 import signal
 
 from cas import CASClient # https://github.com/Chise1/fastapi-cas-example # python_cas ?
-from fastapi import FastAPI, Depends, Request, status, Path
+from fastapi import FastAPI, Depends, Request, status, Path, Query
 import uvicorn
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -31,7 +31,6 @@ import asyncio
 import anyio
 import logging
 import platform
-from typing import Annotated #TODO: use Annotated
 from time import time
 from httpx import AsyncClient
 from contextlib import asynccontextmanager
@@ -237,10 +236,10 @@ templates.env.globals.update(get_version=version) # get environment variable
 #    app.locale = Locale(debug=DEBUG)
 #    templates.env.globals.update(lang_str=app.locale.lang_str) # get string from language file
 
-@app.get('/teapot')
+@app.get('/teapot', response_class=HTMLResponse)
 async def teapot():
     return HTMLResponse("<h1>This is a teapot 🫖</h1>", status_code=status.HTTP_418_IM_A_TEAPOT)
-@app.get('/hello')
+@app.get('/hello', response_class=HTMLResponse)
 async def hello():
     return HTMLResponse("<h1>Hello, world!</h1>")
 
@@ -254,7 +253,7 @@ async def index_without_lang(request: Request):
         return RedirectResponse(url=f"/{pref_lang}/")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
-@app.get('/{lang}/', response_class=HTMLResponse)
+@app.get('/{lang}/')
 async def index(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):# lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
     if lang in ["favicon.ico"]:
         return
@@ -266,24 +265,24 @@ async def index(request: Request, lang: Annotated[str, Path(title="2-letter lang
     
     return templates.TemplateResponse(name="index.jinja", context={"request": request,"hello": "world", "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('home_page_title', lang)})
 
-@app.get('/profile')
+@app.get('/profile', response_class=RedirectResponse)
 async def profile_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
     if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-@app.get('/{lang}/profile')
+@app.get('/{lang}/profile', response_class=RedirectResponse)
 async def profile(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return RedirectResponse(url=f"/{lang}/user")
-@app.get('/me')
+@app.get('/me', response_class=RedirectResponse)
 async def me_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
     if pref_lang in app.locale.lang_list:
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-@app.get('/{lang}/me')
+@app.get('/{lang}/me', response_class=RedirectResponse)
 async def me(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return RedirectResponse(url=f"/{lang}/user")
 
@@ -296,7 +295,7 @@ async def user_without_lang(request: Request):
         return RedirectResponse(url=f"/{pref_lang}/user")
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
-@app.get('/{lang}/user', response_class=HTMLResponse)
+@app.get('/{lang}/user')
 async def user(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])], debug: Optional[str] = None, discorddebug: Optional[bool] = None): # lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
     request.session['lang'] = lang
     if DEBUG:
@@ -336,7 +335,7 @@ async def user(request: Request, lang: Annotated[str, Path(title="2-letter langu
     # ---------------------------------------------------------------
 
 
-@app.get('/login')
+@app.get('/login', response_class=RedirectResponse)
 async def login(request: Request, next: Optional[str] = None, ticket: Optional[str] = None):
     service_ticket = ticket # ST from user to verify with CAS server
     if request.session.get("user", None):
@@ -396,7 +395,7 @@ async def login(request: Request, next: Optional[str] = None, ticket: Optional[s
         return response
 
 
-@app.get('/logout')
+@app.get('/logout', response_class=RedirectResponse)
 async def logout(request: Request):
     user = request.session.get("user")
     if user:
@@ -412,7 +411,7 @@ async def logout(request: Request):
         return RedirectResponse(request.url_for('login'))
 
 
-@app.get('/logout-callback')
+@app.get('/logout-callback', response_class=RedirectResponse)
 def logout_callback(request: Request):
     # redirect from CAS logout request after CAS logout successfully
     # response.delete_cookie('username')
@@ -424,7 +423,7 @@ def logout_callback(request: Request):
     return RedirectResponse(request.url_for('index'))
 
 
-@app.get('/discord-login')
+@app.get('/discord-login', response_class=RedirectResponse)
 async def discord_login(request: Request):
     user = request.session.get("user")
     if DEBUG or user:
@@ -464,7 +463,7 @@ async def get_user_guilds(token: str = Depends(discord_auth.get_token)):
     #return guilds
 
 
-@app.get('/discord-callback')
+@app.get('/discord-callback', response_class=RedirectResponse)
 async def discord_callback(request: Request, code: str, state: str):
     cas_user = request.session.get("user")
     if DEBUG or cas_user:
@@ -534,7 +533,7 @@ async def isDiscordAuthenticated(request: Request):
         return False
 
 
-@app.get('/discord-logout')#, dependencies=[Depends(discord_auth.requires_authorization)])
+@app.get('/discord-logout', response_class=RedirectResponse)#, dependencies=[Depends(discord_auth.requires_authorization)])
 async def discord_logout(request: Request):#, token: str = Depends(discord_auth.get_token)):
     try:
         #if await discord_auth.isAuthenticated(token):
@@ -622,7 +621,7 @@ async def force_add_roles(request: Request):
 
 # ---- other pages ----
 
-@app.get('/help')
+@app.get('/help', response_class=RedirectResponse)
 async def help_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
@@ -635,7 +634,7 @@ async def help_without_lang(request: Request):
 async def help(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return templates.TemplateResponse(name="help.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('help_page_title', lang)})
 
-@app.get('/about')
+@app.get('/about', response_class=RedirectResponse)
 async def about_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
@@ -648,7 +647,7 @@ async def about_without_lang(request: Request):
 async def about(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return templates.TemplateResponse(name="about.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('about_page_title', lang)})
 
-@app.get('/privacy-policy')
+@app.get('/privacy-policy', response_class=RedirectResponse)
 async def privacy_policy_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
@@ -661,7 +660,7 @@ async def privacy_policy_without_lang(request: Request):
 async def privacy_policy(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
     return templates.TemplateResponse(name="privacypolicy.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('privacy_policy', lang)})
 
-@app.get('/terms-of-service')
+@app.get('/terms-of-service', response_class=RedirectResponse)
 async def terms_of_service_without_lang(request: Request):
     lang_header = request.headers["Accept-Language"]
     pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
