@@ -1,4 +1,24 @@
 import logging
+from locales import DEFAULT_LANG
+from fastapi import Request
+
+def get_preferred_lang(request: Request, app_lang_list: list[str]) -> str:
+    """
+    Extracts the preferred lang from the user session or "Accept-Language" header, otherwise use DEFAULT_LANG
+    Args:
+        request (Request): The FastAPI request object
+        app_lang_list (list[str]): The list of supported languages (from app.locale.lang_list)
+    Returns:
+        str: lang code
+    """
+    lang_session = request.session.get("lang")
+    if lang_session:
+        return lang_session
+    lang_header = request.headers["Accept-Language"]
+    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+    if pref_lang in app_lang_list:
+        return pref_lang
+    return DEFAULT_LANG
 
 def addLoggingLevel(levelName: str, levelNum: int, methodName: str = None):
     """
