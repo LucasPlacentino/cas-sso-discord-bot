@@ -64,6 +64,8 @@ templates = Jinja2Templates(directory="src/templates")
 # ! does this even work ?
 LangCodePath = Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en", "fr"])] # TODO: use this to improve endpoints def readability ?
 
+# TODO: add function to parse lang from session or headers in utlis.py ?
+
 # TODO: here?
 from bot import Bot
 bot = Bot(logger, logger.formatter, debug=DEBUG)
@@ -300,7 +302,7 @@ async def user_without_lang(request: Request):
     return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/user')
-async def user(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])], debug: Optional[str] = None, discorddebug: Optional[bool] = None): # lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]
+async def user(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])], debug: Annotated[Optional[str], Query(None, description="debug mode key")], discorddebug: Annotated[Optional[bool], Query(None, description="Discord debug mode")]):
     request.session['lang'] = lang
     if DEBUG:
         logger.debug(f"session.user: {request.session.get('user')}")
@@ -340,7 +342,7 @@ async def user(request: Request, lang: Annotated[str, Path(title="2-letter langu
 
 
 @app.get('/login', response_class=RedirectResponse)
-async def login(request: Request, next: Optional[str] = None, ticket: Optional[str] = None):
+async def login(request: Request, ticket: Annotated[Optional[str], Query(None, description="CAS ticket from CAS server")], next: Annotated[Optional[str], Query(None, description="next path to redirect at the end")]): #TODO: remove next ?
     service_ticket = ticket # ST from user to verify with CAS server
     if request.session.get("user", None):
         # Already logged in
@@ -468,14 +470,24 @@ async def get_user_guilds(token: str = Depends(discord_auth.get_token)):
 
 
 @app.get('/discord-callback', response_class=RedirectResponse)
-async def discord_callback(request: Request, code: str, state: str):
+async def discord_callback(request: Request,
+                           code: Annotated[str, Query(..., title="OAuth2 code returned from Discord, used to get access token")], # `...` means required
+                           state: Annotated[str, Query(..., title="OAuth2 state parameter returned from Discord")] # `...` means required
+                          ):
     cas_user = request.session.get("user")
     if DEBUG or cas_user:
         logger.debug(f"discord_callback: code={code}, state={state}")
 
+        try:
+            assert state == "my_test_state" # compares state for security # TODO: assert randomly generated state
+        except AssertionError:
+            logger.error("discord_callback: state does not match")
+            request.session.clear() # needed ?
+            return RedirectResponse(request.url_for('login'), status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
         token, refresh_token = await discord_auth.get_access_token(code) # ?
         if DEBUG:
-            logger.debug(f"discord_callback: token={token if DEV_ENV else 'hidden'}, refresh_token={refresh_token if DEV_ENV else 'hidden'}")
+            logger.debug(f"discord_callback: token={token if DEV_ENV else '_hidden_'}, refresh_token={refresh_token if DEV_ENV else '_hidden_'}")
         request.session['discord_refresh_token'] = refresh_token
         request.session['discord_token'] = token #await discord_auth.get_token(request=request) #! or just token from above ?
 
@@ -503,12 +515,6 @@ async def discord_callback(request: Request, code: str, state: str):
         except:
             logger.error(f"ScopeMissing error in Discord API Client: missing \"guilds\" in scopes -> ignoring user guilds")
 
-        try:
-            assert state == "my_test_state" # compares state for security # TODO: assert state
-        except AssertionError:
-            request.session.clear()
-            logger.error("discord_callback: state does not match")
-            return RedirectResponse(request.url_for('login'), status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         return RedirectResponse(request.url_for('user', lang=request.session['lang']))
         ##try:
@@ -537,6 +543,7 @@ async def isDiscordAuthenticated(request: Request):
         return False
 
 
+# DOES THIS WORK ?
 @app.get('/discord-logout', response_class=RedirectResponse)#, dependencies=[Depends(discord_auth.requires_authorization)])
 async def discord_logout(request: Request):#, token: str = Depends(discord_auth.get_token)):
     try:
@@ -602,7 +609,7 @@ async def revoke_discord_token(token: str, token_type: str=None, user: str=None)
         logger.error(f"revoke_discord_token: Unexpected HTTP response {response.status_code}")
     return False
 
-#TODO: rate limit
+# ! TODO: rate limit
 @app.post('/user/force-add-roles') # POST request
 async def force_add_roles(request: Request):
     if DEBUG:
