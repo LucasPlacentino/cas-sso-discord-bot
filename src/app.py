@@ -36,7 +36,7 @@ from httpx import AsyncClient
 from contextlib import asynccontextmanager
 from json import load
 
-from utils import addLoggingLevel
+from utils import addLoggingLevel, get_preferred_lang
 #from bot import Bot # TODO: implement bot
 from locales import Locale, DEFAULT_LANG
 
@@ -251,13 +251,8 @@ async def hello():
 
 @app.get('/', response_class=RedirectResponse)
 async def index_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in app.locale.lang_list:
-        if DEBUG:
-            logger.debug(f"index_without_lang: in Accept-Language header: {lang_header} => pref_lang={pref_lang}")
-        return RedirectResponse(url=f"/{pref_lang}/")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    return RedirectResponse(url=f"/{lang}/", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/')
 async def index(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
@@ -273,33 +268,26 @@ async def index(request: Request, lang: Annotated[str, Path(title="2-letter lang
 
 @app.get('/profile', response_class=RedirectResponse)
 async def profile_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in app.locale.lang_list:
-        return RedirectResponse(url=f"/{pref_lang}/user")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    return RedirectResponse(url=f"/{lang}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/profile', response_class=RedirectResponse)
 async def profile(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    request.session['lang'] = lang
     return RedirectResponse(url=f"/{lang}/user")
 @app.get('/me', response_class=RedirectResponse)
 async def me_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in app.locale.lang_list:
-        return RedirectResponse(url=f"/{pref_lang}/user")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    return RedirectResponse(url=f"/{lang}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/me', response_class=RedirectResponse)
 async def me(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    request.session['lang'] = lang
     return RedirectResponse(url=f"/{lang}/user")
 
 
 @app.get('/user', response_class=RedirectResponse)
 async def user_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower() # get first language from header
-    if pref_lang in app.locale.lang_list:
-        return RedirectResponse(url=f"/{pref_lang}/user")
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    return RedirectResponse(url=f"/{lang}/user", status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 @app.get('/{lang}/user')
 async def user(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])], debug: Annotated[Optional[str], Query(None, description="debug mode key")], discorddebug: Annotated[Optional[bool], Query(None, description="Discord debug mode")]):
@@ -634,54 +622,43 @@ async def force_add_roles(request: Request):
 
 @app.get('/help', response_class=RedirectResponse)
 async def help_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
-    if pref_lang in app.locale.lang_list:
-        return RedirectResponse(url=f"/{pref_lang}/help")
-        return RedirectResponse(url_for('help', lang=pref_lang))
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/help", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-    return RedirectResponse(url_for('help', lang=DEFAULT_LANG), status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    # TODO: Which ? :
+    return RedirectResponse(url=f"/{lang}/help", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    return RedirectResponse(url_for('help', lang=lang), status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/help', response_class=HTMLResponse)
 async def help(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    request.session['lang'] = lang
     return templates.TemplateResponse(name="help.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('help_page_title', lang)})
 
 @app.get('/about', response_class=RedirectResponse)
 async def about_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
-    if pref_lang in app.locale.lang_list:
-        return RedirectResponse(url=f"/{pref_lang}/about")
-        return RedirectResponse(url_for('about', lang=pref_lang))
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/about", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-    return RedirectResponse(url_for('about', lang=DEFAULT_LANG), status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    return RedirectResponse(url=f"/{lang}/about", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    return RedirectResponse(url_for('about', lang=lang), status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/about', response_class=HTMLResponse)
 async def about(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    request.session['lang'] = lang
     return templates.TemplateResponse(name="about.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('about_page_title', lang)})
 
 @app.get('/privacy-policy', response_class=RedirectResponse)
 async def privacy_policy_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
-    if pref_lang in app.locale.lang_list:
-        return RedirectResponse(url=f"/{pref_lang}/privacy-policy")
-        return RedirectResponse(url_for('privacy_policy', lang=pref_lang))
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/privacy-policy", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-    return RedirectResponse(url_for('privacy_policy', lang=DEFAULT_LANG), status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    return RedirectResponse(url=f"/{lang}/privacy-policy", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    return RedirectResponse(url_for('privacy_policy', lang=lang), status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/privacy-policy', response_class=HTMLResponse)
 async def privacy_policy(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    request.session['lang'] = lang
     return templates.TemplateResponse(name="privacypolicy.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('privacy_policy', lang)})
 
 @app.get('/terms-of-service', response_class=RedirectResponse)
 async def terms_of_service_without_lang(request: Request):
-    lang_header = request.headers["Accept-Language"]
-    pref_lang = lang_header.split(',')[0].split(';')[0].strip().split('-')[0].lower()
-    if pref_lang in app.locale.lang_list:
-        return RedirectResponse(url=f"/{pref_lang}/terms-of-service")
-        return RedirectResponse(url_for('terms_of_service', lang=pref_lang))
-    return RedirectResponse(url=f"/{DEFAULT_LANG}/terms-of-service", status_code=status.HTTP_308_PERMANENT_REDIRECT)
-    return RedirectResponse(url_for('terms_of_service', lang=DEFAULT_LANG), status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    lang = get_preferred_lang(request, app.locale.lang_list)
+    return RedirectResponse(url=f"/{lang}/terms-of-service", status_code=status.HTTP_308_PERMANENT_REDIRECT)
+    return RedirectResponse(url_for('terms_of_service', lang=lang), status_code=status.HTTP_308_PERMANENT_REDIRECT)
 @app.get('/{lang}/terms-of-service', response_class=HTMLResponse)
 async def terms_of_service(request: Request, lang: Annotated[str, Path(title="2-letter language code", max_length=2, min_length=2, examples=["en","fr"])]):
+    request.session['lang'] = lang
     return templates.TemplateResponse(name="tos.jinja", context={"request": request, "current_lang": lang, "lang_list": app.locale.lang_list, "page_title": app.locale.lang_str('terms_of_service', lang)})
 
 # ---- error pages ----
