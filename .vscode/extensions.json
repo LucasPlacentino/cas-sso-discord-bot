@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "samuelcolvin.jinjahtml",
+        "ms-python.mypy-type-checker",
+        "ms-python.vscode-pylance",
+        "aaron-bond.better-comments",
+        "mikestead.dotenv",
+        "wayou.vscode-todo-highlight"
+    ]
+}
